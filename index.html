@@ -210,6 +210,7 @@
             const [progress, setProgress] = useState(0);
             const [duration, setDuration] = useState(0);
             const [isPlaying, setIsPlaying] = useState(false);
+            const [podcastDurations, setPodcastDurations] = useState({}); // Track duration for each podcast
             const [searchQuery, setSearchQuery] = useState('');
             const [sortBy, setSortBy] = useState('recent'); // recent, name, progress
             const [viewMode, setViewMode] = useState('list'); // list or grid
@@ -699,6 +700,11 @@
                     // Set up event listeners
                     audio.addEventListener('loadedmetadata', () => {
                         setDuration(audio.duration);
+                        // Store duration for this podcast
+                        setPodcastDurations(prev => ({
+                            ...prev,
+                            [feed.id]: audio.duration
+                        }));
                         // Restore playback position
                         if (feed.playbackPosition && feed.playbackPosition > 0) {
                             audio.currentTime = feed.playbackPosition;
@@ -780,6 +786,13 @@
                 const mins = Math.floor(seconds / 60);
                 const secs = Math.floor(seconds % 60);
                 return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+            
+            const getProgressPercentage = (feedId, playbackPosition) => {
+                if (!playbackPosition || playbackPosition === 0) return 0;
+                const feedDuration = podcastDurations[feedId];
+                if (!feedDuration) return 0;
+                return Math.min((playbackPosition / feedDuration) * 100, 100);
             };
             
             // Filter and sort podcasts
@@ -1141,7 +1154,7 @@
                                                                 <div className="w-full bg-gray-200 rounded-full h-1">
                                                                     <div 
                                                                         className="bg-purple-600 h-1 rounded-full"
-                                                                        style={{ width: '30%' }}
+                                                                        style={{ width: `${getProgressPercentage(feed.id, feed.playbackPosition)}%` }}
                                                                         title={`${formatTime(feed.playbackPosition)} played`}
                                                                     ></div>
                                                                 </div>
@@ -1219,7 +1232,7 @@
                                                                 <div className="w-full bg-gray-200 rounded-full h-1 mb-2">
                                                                     <div 
                                                                         className="bg-purple-600 h-1 rounded-full"
-                                                                        style={{ width: '30%' }}
+                                                                        style={{ width: `${getProgressPercentage(feed.id, feed.playbackPosition)}%` }}
                                                                     ></div>
                                                                 </div>
                                                             )}
