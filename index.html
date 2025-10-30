@@ -255,6 +255,13 @@
                 <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
         );
+        
+        const CheckCircle = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+        );
 
         function SimplePodcastApp() {
             const [feeds, setFeeds] = useState([]);
@@ -904,8 +911,8 @@
                     audio.addEventListener('ended', () => {
                         setIsPlaying(false);
                         setPlayingId(null);
-                        // Reset position when episode ends
-                        savePlaybackPosition(feed.id, 0);
+                        // Save final position (duration) to mark as completed
+                        savePlaybackPosition(feed.id, audio.duration);
                     });
                     
                     audio.play();
@@ -931,7 +938,7 @@
             
             const savePlaybackPosition = async (feedId, position) => {
                 // Update local state
-                setFeeds(feeds.map(f => 
+                setFeeds(prevFeeds => prevFeeds.map(f => 
                     f.id === feedId ? { ...f, playbackPosition: position } : f
                 ));
                 
@@ -973,6 +980,13 @@
                 const feedDuration = podcastDurations[feedId];
                 if (!feedDuration) return 0;
                 return Math.min((playbackPosition / feedDuration) * 100, 100);
+            };
+            
+            const isEpisodeCompleted = (feedId, playbackPosition) => {
+                const feedDuration = podcastDurations[feedId];
+                if (!feedDuration || !playbackPosition) return false;
+                // Consider completed if played 95% or more
+                return (playbackPosition / feedDuration) >= 0.95;
             };
             
             // Filter and sort podcasts
@@ -1299,13 +1313,17 @@
                                         ) : viewMode === 'list' ? (
                                             // List View
                                             <div className="space-y-3">
-                                                {getFilteredAndSortedFeeds().map((feed) => (
+                                                {getFilteredAndSortedFeeds().map((feed) => {
+                                                    const isCompleted = isEpisodeCompleted(feed.id, feed.playbackPosition);
+                                                    return (
                                                     <div 
                                                         key={feed.id} 
                                                         className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                                                            isCompleted ? 'opacity-60' : ''
+                                                        } ${
                                                             currentPodcast?.id === feed.id 
-                                                                ? 'border-purple-600 bg-purple-50' 
-                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700'
+                                                                ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20' 
+                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                                                         }`}
                                                         onClick={() => {
                                                             togglePlay(feed);
@@ -1313,19 +1331,26 @@
                                                         }}
                                                     >
                                                         {/* Artwork */}
-                                                        {feed.artwork ? (
-                                                            <img 
-                                                                src={feed.artwork} 
-                                                                alt={feed.podcastTitle}
-                                                                className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center flex-shrink-0">
-                                                                <span className="text-white text-xl font-bold">
-                                                                    {feed.podcastTitle.charAt(0)}
-                                                                </span>
-                                                            </div>
-                                                        )}
+                                                        <div className="relative flex-shrink-0">
+                                                            {feed.artwork ? (
+                                                                <img 
+                                                                    src={feed.artwork} 
+                                                                    alt={feed.podcastTitle}
+                                                                    className="w-16 h-16 rounded-lg object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
+                                                                    <span className="text-white text-xl font-bold">
+                                                                        {feed.podcastTitle.charAt(0)}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {isCompleted && (
+                                                                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
+                                                                    <CheckCircle size={16} className="text-white" />
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                         
                                                         {/* Info */}
                                                         <div className="flex-1 min-w-0">
@@ -1374,24 +1399,36 @@
                                                             </button>
                                                         </div>
                                                     </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         ) : (
                                             // Grid View
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                                {getFilteredAndSortedFeeds().map((feed) => (
+                                                {getFilteredAndSortedFeeds().map((feed) => {
+                                                    const isCompleted = isEpisodeCompleted(feed.id, feed.playbackPosition);
+                                                    return (
                                                     <div 
                                                         key={feed.id} 
                                                         className={`relative rounded-lg border-2 transition-all cursor-pointer overflow-hidden ${
+                                                            isCompleted ? 'opacity-60' : ''
+                                                        } ${
                                                             currentPodcast?.id === feed.id 
-                                                                ? 'border-purple-600 bg-purple-50' 
-                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700'
+                                                                ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20' 
+                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                                                         }`}
                                                         onClick={() => {
                                                             togglePlay(feed);
                                                             setShowModal(false);
                                                         }}
                                                     >
+                                                        {/* Completed Badge */}
+                                                        {isCompleted && (
+                                                            <div className="absolute top-2 right-2 z-10 bg-green-500 rounded-full p-1.5 shadow-lg">
+                                                                <CheckCircle size={14} className="text-white" />
+                                                            </div>
+                                                        )}
+                                                        
                                                         {/* Artwork */}
                                                         {feed.artwork ? (
                                                             <img 
@@ -1451,7 +1488,8 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
