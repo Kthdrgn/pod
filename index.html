@@ -16,11 +16,25 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
         }
+        
+        /* Dark mode styles */
+        .dark {
+            color-scheme: dark;
+        }
+        .dark body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        
         /* Prose styling for description content */
         .prose {
             color: #374151;
             line-height: 1.75;
+        }
+        .dark .prose {
+            color: #cbd5e1;
         }
         .prose p {
             margin-bottom: 1.25em;
@@ -29,12 +43,21 @@
             color: #9333ea;
             text-decoration: underline;
         }
+        .dark .prose a {
+            color: #a78bfa;
+        }
         .prose a:hover {
             color: #7e22ce;
+        }
+        .dark .prose a:hover {
+            color: #c4b5fd;
         }
         .prose strong {
             font-weight: 600;
             color: #1f2937;
+        }
+        .dark .prose strong {
+            color: #f1f5f9;
         }
         .prose ul, .prose ol {
             margin-top: 1.25em;
@@ -50,6 +73,9 @@
             font-weight: 600;
             margin-top: 1.5em;
             margin-bottom: 0.75em;
+        }
+        .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4 {
+            color: #f1f5f9;
         }
         .prose h1 {
             font-size: 1.5em;
@@ -67,6 +93,10 @@
             color: #6b7280;
             margin: 1.5em 0;
         }
+        .dark .prose blockquote {
+            border-left-color: #475569;
+            color: #94a3b8;
+        }
         .prose img {
             max-width: 100%;
             height: auto;
@@ -75,8 +105,13 @@
         }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
 </head>
-<body>
+<body class="bg-gray-50 dark:bg-slate-700 dark:bg-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -192,6 +227,34 @@
                 <circle cx="12" cy="12" r="3"></circle>
             </svg>
         );
+        
+        const Sun = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        );
+        
+        const Moon = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        );
+        
+        const Monitor = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+        );
 
         function SimplePodcastApp() {
             const [feeds, setFeeds] = useState([]);
@@ -212,10 +275,14 @@
             const [isPlaying, setIsPlaying] = useState(false);
             const [podcastDurations, setPodcastDurations] = useState({}); // Track duration for each podcast
             const [searchQuery, setSearchQuery] = useState('');
-            const [sortBy, setSortBy] = useState('recent'); // recent, name, progress
+            const [sortBy, setSortBy] = useState('releaseDate'); // releaseDate, name, progress, recentlyPlayed
             const [viewMode, setViewMode] = useState('list'); // list or grid
             const [showFullDescription, setShowFullDescription] = useState(false);
             const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+            const [theme, setTheme] = useState(() => {
+                // Load theme from localStorage, default to 'auto'
+                return localStorage.getItem('podcastTheme') || 'auto';
+            });
 
             // Check if user is already logged in
             useEffect(() => {
@@ -307,6 +374,36 @@
                     loadFeedsFromSupabase();
                 }
             }, [isAuthenticated]);
+            
+            // Handle theme changes
+            useEffect(() => {
+                const root = document.documentElement;
+                
+                const applyTheme = (isDark) => {
+                    if (isDark) {
+                        root.classList.add('dark');
+                    } else {
+                        root.classList.remove('dark');
+                    }
+                };
+                
+                if (theme === 'auto') {
+                    // Follow device preference
+                    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                    applyTheme(mediaQuery.matches);
+                    
+                    // Listen for changes
+                    const listener = (e) => applyTheme(e.matches);
+                    mediaQuery.addEventListener('change', listener);
+                    return () => mediaQuery.removeEventListener('change', listener);
+                } else {
+                    // Use selected theme
+                    applyTheme(theme === 'dark');
+                }
+                
+                // Save to localStorage
+                localStorage.setItem('podcastTheme', theme);
+            }, [theme]);
 
             const loadFeedsFromSupabase = async () => {
                 const userId = getUserId();
@@ -331,11 +428,13 @@
                         episodeTitle: item.episode_title,
                         description: item.description,
                         pubDate: item.pub_date,
+                        pubDateISO: item.pub_date_iso || item.pub_date,
                         audioUrl: item.audio_url,
                         artwork: item.artwork,
                         lastUpdated: item.last_updated,
                         playbackPosition: item.playback_position || 0,
-                        duration: item.duration || 0
+                        duration: item.duration || 0,
+                        lastPlayed: item.last_played || null
                     }));
                     
                     console.log('Raw data from Supabase:', data.map(d => ({ 
@@ -544,11 +643,13 @@
                         episodeTitle,
                         description: description, // Keep full HTML description
                         pubDate: new Date(pubDate).toLocaleDateString(),
+                        pubDateISO: pubDate, // Keep original date string for sorting
                         audioUrl,
                         artwork: itunesImage,
                         lastUpdated: new Date().toISOString(),
                         playbackPosition: 0,
-                        duration: 0
+                        duration: 0,
+                        lastPlayed: null
                     };
                 } catch (error) {
                     console.error('Parse error:', error);
@@ -574,11 +675,13 @@
                             episode_title: feedData.episodeTitle,
                             description: feedData.description,
                             pub_date: feedData.pubDate,
+                            pub_date_iso: feedData.pubDateISO,
                             audio_url: feedData.audioUrl,
                             artwork: feedData.artwork,
                             last_updated: feedData.lastUpdated,
                             playback_position: 0,
-                            duration: 0
+                            duration: 0,
+                            last_played: null
                         }])
                         .select();
                     
@@ -610,6 +713,7 @@
                         // Preserve the original ID
                         updatedFeed.id = feed.id;
                         updatedFeed.duration = feed.duration || 0; // Preserve duration
+                        updatedFeed.lastPlayed = feed.lastPlayed || null; // Preserve last played
                         
                         // Check if it's a new episode - if so, reset playback position
                         if (updatedFeed.episodeTitle !== feed.episodeTitle || updatedFeed.audioUrl !== feed.audioUrl) {
@@ -617,8 +721,11 @@
                             updatedFeed.duration = 0; // Reset duration for new episode
                             console.log('New episode detected for:', feed.podcastTitle, '- resetting progress');
                         } else {
-                            // Same episode, preserve playback position
+                            // Same episode, preserve playback position and use existing pubDateISO if available
                             updatedFeed.playbackPosition = feed.playbackPosition || 0;
+                            if (feed.pubDateISO) {
+                                updatedFeed.pubDateISO = feed.pubDateISO;
+                            }
                         }
                         
                         refreshedFeeds.push(updatedFeed);
@@ -630,6 +737,7 @@
                                 episode_title: updatedFeed.episodeTitle,
                                 description: updatedFeed.description,
                                 pub_date: updatedFeed.pubDate,
+                                pub_date_iso: updatedFeed.pubDateISO,
                                 audio_url: updatedFeed.audioUrl,
                                 artwork: updatedFeed.artwork,
                                 last_updated: updatedFeed.lastUpdated,
@@ -667,6 +775,7 @@
                     const updatedFeed = await parseRSSFeed(feed.feedUrl);
                     updatedFeed.id = feed.id; // Preserve the ID
                     updatedFeed.duration = feed.duration || 0; // Preserve duration
+                    updatedFeed.lastPlayed = feed.lastPlayed || null; // Preserve last played
                     
                     // Check if it's a new episode - if so, reset playback position
                     if (updatedFeed.episodeTitle !== feed.episodeTitle || updatedFeed.audioUrl !== feed.audioUrl) {
@@ -674,8 +783,11 @@
                         updatedFeed.duration = 0; // Reset duration for new episode
                         console.log('New episode detected - resetting progress');
                     } else {
-                        // Same episode, preserve playback position
+                        // Same episode, preserve playback position and use existing pubDateISO if available
                         updatedFeed.playbackPosition = feed.playbackPosition || 0;
+                        if (feed.pubDateISO) {
+                            updatedFeed.pubDateISO = feed.pubDateISO;
+                        }
                     }
                     
                     // Update in Supabase
@@ -685,6 +797,7 @@
                             episode_title: updatedFeed.episodeTitle,
                             description: updatedFeed.description,
                             pub_date: updatedFeed.pubDate,
+                            pub_date_iso: updatedFeed.pubDateISO,
                             audio_url: updatedFeed.audioUrl,
                             artwork: updatedFeed.artwork,
                             last_updated: updatedFeed.lastUpdated,
@@ -730,6 +843,18 @@
                     }
                     
                     const audio = new Audio(feed.audioUrl);
+                    
+                    // Update last played timestamp
+                    const lastPlayedTime = new Date().toISOString();
+                    setFeeds(prevFeeds => prevFeeds.map(f => 
+                        f.id === feed.id ? { ...f, lastPlayed: lastPlayedTime } : f
+                    ));
+                    
+                    // Save last played to Supabase
+                    supabase
+                        .from('podcasts')
+                        .update({ last_played: lastPlayedTime })
+                        .eq('id', feed.id);
                     
                     // Set up event listeners
                     audio.addEventListener('loadedmetadata', () => {
@@ -869,9 +994,17 @@
                             return a.podcastTitle.localeCompare(b.podcastTitle);
                         case 'progress':
                             return (b.playbackPosition || 0) - (a.playbackPosition || 0);
-                        case 'recent':
+                        case 'releaseDate':
+                            // Sort by the episode publication date (most recent first)
+                            return new Date(b.pubDateISO) - new Date(a.pubDateISO);
+                        case 'recentlyPlayed':
+                            // Sort by last played (most recent first), nulls last
+                            if (!a.lastPlayed && !b.lastPlayed) return 0;
+                            if (!a.lastPlayed) return 1;
+                            if (!b.lastPlayed) return -1;
+                            return new Date(b.lastPlayed) - new Date(a.lastPlayed);
                         default:
-                            return new Date(b.lastUpdated) - new Date(a.lastUpdated);
+                            return new Date(b.pubDateISO) - new Date(a.pubDateISO);
                     }
                 });
                 
@@ -879,42 +1012,42 @@
             };
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4 sm:p-8">
+                <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-8">
                     {!isAuthenticated ? (
                         // Login/Signup Screen
                         <div className="max-w-md mx-auto mt-20">
-                            <div className="bg-white rounded-lg shadow-lg p-8">
-                                <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">
+                            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8">
+                                <h1 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-100 mb-6">
                                     Latest Episodes
                                 </h1>
-                                <p className="text-center text-gray-600 mb-8">
+                                <p className="text-center text-gray-600 dark:text-gray-300 mb-8">
                                     {isLogin ? 'Login to your account' : 'Create a new account'}
                                 </p>
                                 
                                 <form onSubmit={handleAuth} className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                                             Username
                                         </label>
                                         <input
                                             type="text"
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                             placeholder="Enter username"
                                             disabled={authLoading}
                                         />
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                                             Password
                                         </label>
                                         <input
                                             type="password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                             placeholder="Enter password"
                                             disabled={authLoading}
                                         />
@@ -944,7 +1077,7 @@
                         // Main App
                     <div className="max-w-2xl mx-auto">
                         {/* Main Player Card */}
-                        <div className="bg-white rounded-2xl shadow-2xl p-8 mb-6">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 mb-6">
                             {currentPodcast ? (
                                 <>
                                     {/* Podcast Artwork */}
@@ -966,17 +1099,17 @@
                                     
                                     {/* Podcast Info */}
                                     <div className="text-center mb-6">
-                                        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
                                             {currentPodcast.episodeTitle}
                                         </h2>
                                         <p className="text-lg text-purple-600 mb-2">
                                             {currentPodcast.podcastTitle}
                                         </p>
-                                        <p className="text-sm text-gray-500 mb-3">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                                             {currentPodcast.pubDate}
                                         </p>
                                         {/* Episode Description */}
-                                        <div className="text-sm text-gray-600 max-w-lg mx-auto">
+                                        <div className="text-sm text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
                                             <p className="truncate">
                                                 {currentPodcast.description.replace(/<[^>]*>/g, '')}
                                             </p>
@@ -994,7 +1127,7 @@
                                     {/* Progress Bar */}
                                     <div className="mb-4">
                                         <div 
-                                            className="w-full bg-gray-200 rounded-full h-2 cursor-pointer"
+                                            className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 cursor-pointer"
                                             onClick={handleProgressClick}
                                         >
                                             <div 
@@ -1002,7 +1135,7 @@
                                                 style={{ width: `${(progress / duration) * 100}%` }}
                                             ></div>
                                         </div>
-                                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
                                             <span>{formatTime(progress)}</span>
                                             <span>{formatTime(duration)}</span>
                                         </div>
@@ -1012,7 +1145,7 @@
                                     <div className="flex items-center justify-center gap-4 mb-6">
                                         <button
                                             onClick={skipBackward}
-                                            className="p-3 hover:bg-gray-100 rounded-full transition-colors"
+                                            className="p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
                                             title="Skip back 10s"
                                         >
                                             <SkipBack size={24} />
@@ -1027,7 +1160,7 @@
                                         
                                         <button
                                             onClick={skipForward}
-                                            className="p-3 hover:bg-gray-100 rounded-full transition-colors"
+                                            className="p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
                                             title="Skip forward 30s"
                                         >
                                             <SkipForward size={24} />
@@ -1039,10 +1172,10 @@
                                     <div className="w-96 h-96 mx-auto rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center mb-6">
                                         <Play size={96} className="text-purple-300" />
                                     </div>
-                                    <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
                                         No podcast selected
                                     </h2>
-                                    <p className="text-gray-600">
+                                    <p className="text-gray-600 dark:text-gray-300">
                                         Add a podcast below to start listening
                                     </p>
                                 </div>
@@ -1053,7 +1186,7 @@
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 onClick={() => setShowModal(true)}
-                                className="bg-white hover:bg-gray-50 text-gray-800 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
+                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
                             >
                                 <List size={20} />
                                 My Podcasts ({feeds.length})
@@ -1061,7 +1194,7 @@
                             
                             <button
                                 onClick={() => setShowSettings(true)}
-                                className="bg-white hover:bg-gray-50 text-gray-800 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
+                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
                             >
                                 <Settings size={20} />
                                 Settings
@@ -1071,13 +1204,13 @@
                         {/* Modal for Podcast List */}
                         {showModal && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
                                     {/* Modal Header */}
                                     <div className="flex items-center justify-between p-6 border-b">
-                                        <h3 className="text-2xl font-bold text-gray-800">My Podcasts</h3>
+                                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">My Podcasts</h3>
                                         <button
                                             onClick={() => setShowModal(false)}
-                                            className="text-gray-500 hover:text-gray-700 p-2"
+                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 p-2"
                                         >
                                             <X size={24} />
                                         </button>
@@ -1093,7 +1226,7 @@
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 placeholder="Search podcasts..."
-                                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                             />
                                         </div>
                                         
@@ -1101,13 +1234,14 @@
                                         <div className="flex items-center justify-between gap-4">
                                             {/* Sort Dropdown */}
                                             <div className="flex items-center gap-2">
-                                                <label className="text-sm text-gray-600">Sort by:</label>
+                                                <label className="text-sm text-gray-600 dark:text-gray-300">Sort by:</label>
                                                 <select
                                                     value={sortBy}
                                                     onChange={(e) => setSortBy(e.target.value)}
-                                                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                                                 >
-                                                    <option value="recent">Recently Updated</option>
+                                                    <option value="releaseDate">Release Date</option>
+                                                    <option value="recentlyPlayed">Recently Played</option>
                                                     <option value="name">Name</option>
                                                     <option value="progress">Most Played</option>
                                                 </select>
@@ -1124,13 +1258,13 @@
                                                     Refresh
                                                 </button>
                                                 
-                                                <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                                                <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
                                                     <button
                                                         onClick={() => setViewMode('list')}
                                                         className={`p-2 transition-colors ${
                                                             viewMode === 'list' 
                                                                 ? 'bg-purple-600 text-white' 
-                                                                : 'bg-white text-gray-600 hover:bg-gray-50'
+                                                                : 'bg-white text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700'
                                                         }`}
                                                         title="List view"
                                                     >
@@ -1141,7 +1275,7 @@
                                                         className={`p-2 transition-colors ${
                                                             viewMode === 'grid' 
                                                                 ? 'bg-purple-600 text-white' 
-                                                                : 'bg-white text-gray-600 hover:bg-gray-50'
+                                                                : 'bg-white text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700'
                                                         }`}
                                                         title="Grid view"
                                                     >
@@ -1155,11 +1289,11 @@
                                     {/* Modal Content */}
                                     <div className="flex-1 overflow-y-auto p-6">
                                         {feeds.length === 0 ? (
-                                            <p className="text-center text-gray-500 py-8">
+                                            <p className="text-center text-gray-500 dark:text-gray-400 py-8">
                                                 No podcasts yet. Add your first RSS feed!
                                             </p>
                                         ) : getFilteredAndSortedFeeds().length === 0 ? (
-                                            <p className="text-center text-gray-500 py-8">
+                                            <p className="text-center text-gray-500 dark:text-gray-400 py-8">
                                                 No podcasts match your search.
                                             </p>
                                         ) : viewMode === 'list' ? (
@@ -1171,7 +1305,7 @@
                                                         className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all cursor-pointer ${
                                                             currentPodcast?.id === feed.id 
                                                                 ? 'border-purple-600 bg-purple-50' 
-                                                                : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700'
                                                         }`}
                                                         onClick={() => {
                                                             togglePlay(feed);
@@ -1198,15 +1332,15 @@
                                                             <p className="text-xs font-semibold text-purple-600 mb-1 truncate">
                                                                 {feed.podcastTitle}
                                                             </p>
-                                                            <p className="text-sm font-medium text-gray-800 truncate mb-1">
+                                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate mb-1">
                                                                 {feed.episodeTitle}
                                                             </p>
-                                                            <p className="text-xs text-gray-500 mb-2">
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                                                                 {feed.pubDate}
                                                             </p>
                                                             {/* Progress indicator */}
                                                             {feed.playbackPosition > 0 && (
-                                                                <div className="w-full bg-gray-200 rounded-full h-1">
+                                                                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1">
                                                                     <div 
                                                                         className="bg-purple-600 h-1 rounded-full"
                                                                         style={{ width: `${getProgressPercentage(feed.id, feed.playbackPosition)}%` }}
@@ -1251,7 +1385,7 @@
                                                         className={`relative rounded-lg border-2 transition-all cursor-pointer overflow-hidden ${
                                                             currentPodcast?.id === feed.id 
                                                                 ? 'border-purple-600 bg-purple-50' 
-                                                                : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700'
                                                         }`}
                                                         onClick={() => {
                                                             togglePlay(feed);
@@ -1278,13 +1412,13 @@
                                                             <p className="text-xs font-semibold text-purple-600 mb-1 truncate">
                                                                 {feed.podcastTitle}
                                                             </p>
-                                                            <p className="text-xs text-gray-800 truncate mb-2">
+                                                            <p className="text-xs text-gray-800 dark:text-gray-100 truncate mb-2">
                                                                 {feed.episodeTitle}
                                                             </p>
                                                             
                                                             {/* Progress indicator */}
                                                             {feed.playbackPosition > 0 && (
-                                                                <div className="w-full bg-gray-200 rounded-full h-1 mb-2">
+                                                                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1 mb-2">
                                                                     <div 
                                                                         className="bg-purple-600 h-1 rounded-full"
                                                                         style={{ width: `${getProgressPercentage(feed.id, feed.playbackPosition)}%` }}
@@ -1328,13 +1462,13 @@
                         {/* Settings Modal */}
                         {showSettings && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full overflow-hidden">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-lg w-full overflow-hidden">
                                     {/* Modal Header */}
                                     <div className="flex items-center justify-between p-6 border-b">
-                                        <h3 className="text-2xl font-bold text-gray-800">Settings</h3>
+                                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Settings</h3>
                                         <button
                                             onClick={() => setShowSettings(false)}
-                                            className="text-gray-500 hover:text-gray-700 p-2"
+                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 p-2"
                                         >
                                             <X size={24} />
                                         </button>
@@ -1342,14 +1476,65 @@
                                     
                                     {/* Modal Content */}
                                     <div className="p-6 space-y-6">
+                                        {/* Theme Section */}
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 dark:text-gray-100 mb-3">Theme</h4>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <button
+                                                    onClick={() => setTheme('light')}
+                                                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                                                        theme === 'light'
+                                                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                                                            : 'border-gray-300 dark:border-gray-600 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-700'
+                                                    }`}
+                                                >
+                                                    <Sun size={24} className={theme === 'light' ? 'text-purple-600' : 'text-gray-600 dark:text-gray-300 dark:text-gray-400'} />
+                                                    <span className={`text-sm font-medium ${theme === 'light' ? 'text-purple-600' : 'text-gray-700 dark:text-gray-200 dark:text-gray-300'}`}>
+                                                        Light
+                                                    </span>
+                                                </button>
+                                                
+                                                <button
+                                                    onClick={() => setTheme('dark')}
+                                                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                                                        theme === 'dark'
+                                                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                                                            : 'border-gray-300 dark:border-gray-600 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-700'
+                                                    }`}
+                                                >
+                                                    <Moon size={24} className={theme === 'dark' ? 'text-purple-600' : 'text-gray-600 dark:text-gray-300 dark:text-gray-400'} />
+                                                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-purple-600' : 'text-gray-700 dark:text-gray-200 dark:text-gray-300'}`}>
+                                                        Dark
+                                                    </span>
+                                                </button>
+                                                
+                                                <button
+                                                    onClick={() => setTheme('auto')}
+                                                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                                                        theme === 'auto'
+                                                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                                                            : 'border-gray-300 dark:border-gray-600 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-700'
+                                                    }`}
+                                                >
+                                                    <Monitor size={24} className={theme === 'auto' ? 'text-purple-600' : 'text-gray-600 dark:text-gray-300 dark:text-gray-400'} />
+                                                    <span className={`text-sm font-medium ${theme === 'auto' ? 'text-purple-600' : 'text-gray-700 dark:text-gray-200 dark:text-gray-300'}`}>
+                                                        Auto
+                                                    </span>
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-400 mt-2">
+                                                {theme === 'auto' ? 'Following your device theme' : `Using ${theme} theme`}
+                                            </p>
+                                        </div>
+                                        
                                         {/* Account Section */}
                                         <div>
-                                            <h4 className="text-lg font-semibold text-gray-800 mb-3">Account</h4>
-                                            <div className="bg-gray-50 rounded-lg p-4">
+                                            <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Account</h4>
+                                            <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
                                                 <div className="flex items-center justify-between">
                                                     <div>
-                                                        <p className="text-sm text-gray-600">Logged in as</p>
-                                                        <p className="text-lg font-medium text-gray-800">{username}</p>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-300">Logged in as</p>
+                                                        <p className="text-lg font-medium text-gray-800 dark:text-gray-100">{username}</p>
                                                     </div>
                                                     <button
                                                         onClick={() => {
@@ -1366,7 +1551,7 @@
                                         
                                         {/* Add Podcast Section */}
                                         <div>
-                                            <h4 className="text-lg font-semibold text-gray-800 mb-3">Add Podcast</h4>
+                                            <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Add Podcast</h4>
                                             <div className="space-y-2">
                                                 <input
                                                     type="text"
@@ -1374,7 +1559,7 @@
                                                     onChange={(e) => setNewFeedUrl(e.target.value)}
                                                     onKeyPress={(e) => e.key === 'Enter' && addFeed()}
                                                     placeholder="Enter podcast RSS feed URL..."
-                                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                                     disabled={loading}
                                                 />
                                                 <button
@@ -1390,7 +1575,7 @@
                                                     <Plus size={20} />
                                                     {loading ? 'Adding...' : 'Add Podcast'}
                                                 </button>
-                                                <p className="text-xs text-gray-500 text-center">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                                                     Find RSS feeds on podcast websites or directories
                                                 </p>
                                             </div>
@@ -1398,8 +1583,8 @@
                                         
                                         {/* About Section */}
                                         <div>
-                                            <h4 className="text-lg font-semibold text-gray-800 mb-3">About</h4>
-                                            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
+                                            <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">About</h4>
+                                            <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-300">
                                                 <p className="mb-2">Latest Episodes Podcast Player</p>
                                                 <p>A simple podcast player that shows only the newest episode from each podcast.</p>
                                             </div>
@@ -1412,11 +1597,11 @@
                         {/* Description Modal */}
                         {showDescriptionModal && currentPodcast && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
                                     {/* Modal Header */}
                                     <div className="flex items-center justify-between p-6 border-b">
                                         <div className="flex-1 min-w-0 pr-4">
-                                            <h3 className="text-xl font-bold text-gray-800 truncate">
+                                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 truncate">
                                                 {currentPodcast.episodeTitle}
                                             </h3>
                                             <p className="text-sm text-purple-600 truncate">
@@ -1425,7 +1610,7 @@
                                         </div>
                                         <button
                                             onClick={() => setShowDescriptionModal(false)}
-                                            className="text-gray-500 hover:text-gray-700 p-2 flex-shrink-0"
+                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 p-2 flex-shrink-0"
                                         >
                                             <X size={24} />
                                         </button>
@@ -1434,7 +1619,7 @@
                                     {/* Modal Content */}
                                     <div className="flex-1 overflow-y-auto p-6">
                                         <div 
-                                            className="prose prose-sm max-w-none text-gray-700"
+                                            className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200"
                                             dangerouslySetInnerHTML={{ __html: currentPodcast.description }}
                                             style={{
                                                 wordWrap: 'break-word',
