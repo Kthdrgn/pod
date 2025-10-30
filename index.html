@@ -334,12 +334,29 @@
                         audioUrl: item.audio_url,
                         artwork: item.artwork,
                         lastUpdated: item.last_updated,
-                        playbackPosition: item.playback_position || 0
+                        playbackPosition: item.playback_position || 0,
+                        duration: item.duration || 0
                     }));
                     
+                    console.log('Raw data from Supabase:', data.map(d => ({ 
+                        title: d.podcast_title, 
+                        position: d.playback_position, 
+                        duration: d.duration 
+                    })));
+                    
+                    // Load durations into state
+                    const durations = {};
+                    formattedFeeds.forEach(feed => {
+                        if (feed.duration) {
+                            durations[feed.id] = feed.duration;
+                        }
+                    });
+                    setPodcastDurations(durations);
+                    
                     setFeeds(formattedFeeds);
-                    // Refresh all feeds on page load
-                    refreshAllFeeds(formattedFeeds);
+                    console.log('Loaded feeds with durations:', durations);
+                    // Don't refresh automatically on page load - it can clear durations
+                    // refreshAllFeeds(formattedFeeds);
                 }
             };
 
@@ -530,7 +547,8 @@
                         audioUrl,
                         artwork: itunesImage,
                         lastUpdated: new Date().toISOString(),
-                        playbackPosition: 0
+                        playbackPosition: 0,
+                        duration: 0
                     };
                 } catch (error) {
                     console.error('Parse error:', error);
@@ -559,7 +577,8 @@
                             audio_url: feedData.audioUrl,
                             artwork: feedData.artwork,
                             last_updated: feedData.lastUpdated,
-                            playback_position: 0
+                            playback_position: 0,
+                            duration: 0
                         }])
                         .select();
                     
@@ -590,10 +609,12 @@
                         const updatedFeed = await parseRSSFeed(feed.feedUrl);
                         // Preserve the original ID
                         updatedFeed.id = feed.id;
+                        updatedFeed.duration = feed.duration || 0; // Preserve duration
                         
                         // Check if it's a new episode - if so, reset playback position
                         if (updatedFeed.episodeTitle !== feed.episodeTitle || updatedFeed.audioUrl !== feed.audioUrl) {
                             updatedFeed.playbackPosition = 0;
+                            updatedFeed.duration = 0; // Reset duration for new episode
                             console.log('New episode detected for:', feed.podcastTitle, '- resetting progress');
                         } else {
                             // Same episode, preserve playback position
@@ -612,7 +633,8 @@
                                 audio_url: updatedFeed.audioUrl,
                                 artwork: updatedFeed.artwork,
                                 last_updated: updatedFeed.lastUpdated,
-                                playback_position: updatedFeed.playbackPosition
+                                playback_position: updatedFeed.playbackPosition,
+                                duration: updatedFeed.duration
                             })
                             .eq('id', feed.id);
                         
@@ -623,6 +645,15 @@
                         refreshedFeeds.push(feed);
                     }
                 }
+                
+                // Rebuild durations state from refreshed feeds
+                const durations = {};
+                refreshedFeeds.forEach(feed => {
+                    if (feed.duration) {
+                        durations[feed.id] = feed.duration;
+                    }
+                });
+                setPodcastDurations(durations);
                 
                 setFeeds(refreshedFeeds);
                 console.log('All feeds refreshed');
@@ -635,10 +666,12 @@
                 try {
                     const updatedFeed = await parseRSSFeed(feed.feedUrl);
                     updatedFeed.id = feed.id; // Preserve the ID
+                    updatedFeed.duration = feed.duration || 0; // Preserve duration
                     
                     // Check if it's a new episode - if so, reset playback position
                     if (updatedFeed.episodeTitle !== feed.episodeTitle || updatedFeed.audioUrl !== feed.audioUrl) {
                         updatedFeed.playbackPosition = 0;
+                        updatedFeed.duration = 0; // Reset duration for new episode
                         console.log('New episode detected - resetting progress');
                     } else {
                         // Same episode, preserve playback position
@@ -655,7 +688,8 @@
                             audio_url: updatedFeed.audioUrl,
                             artwork: updatedFeed.artwork,
                             last_updated: updatedFeed.lastUpdated,
-                            playback_position: updatedFeed.playbackPosition
+                            playback_position: updatedFeed.playbackPosition,
+                            duration: updatedFeed.duration
                         })
                         .eq('id', feedId);
                     
@@ -700,11 +734,32 @@
                     // Set up event listeners
                     audio.addEventListener('loadedmetadata', () => {
                         setDuration(audio.duration);
+                        console.log('Audio duration loaded:', audio.duration, 'for', feed.podcastTitle);
+                        
                         // Store duration for this podcast
                         setPodcastDurations(prev => ({
                             ...prev,
                             [feed.id]: audio.duration
                         }));
+                        
+                        // Update local feed state with duration
+                        setFeeds(prevFeeds => prevFeeds.map(f => 
+                            f.id === feed.id ? { ...f, duration: audio.duration } : f
+                        ));
+                        
+                        // Save duration to Supabase
+                        supabase
+                            .from('podcasts')
+                            .update({ duration: audio.duration })
+                            .eq('id', feed.id)
+                            .then(({ error }) => {
+                                if (error) {
+                                    console.error('Error saving duration:', error);
+                                } else {
+                                    console.log('Duration saved to database:', audio.duration);
+                                }
+                            });
+                        
                         // Restore playback position
                         if (feed.playbackPosition && feed.playbackPosition > 0) {
                             audio.currentTime = feed.playbackPosition;
