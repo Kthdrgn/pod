@@ -17,6 +17,62 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
         }
+        /* Prose styling for description content */
+        .prose {
+            color: #374151;
+            line-height: 1.75;
+        }
+        .prose p {
+            margin-bottom: 1.25em;
+        }
+        .prose a {
+            color: #9333ea;
+            text-decoration: underline;
+        }
+        .prose a:hover {
+            color: #7e22ce;
+        }
+        .prose strong {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .prose ul, .prose ol {
+            margin-top: 1.25em;
+            margin-bottom: 1.25em;
+            padding-left: 1.625em;
+        }
+        .prose li {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4 {
+            color: #1f2937;
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.75em;
+        }
+        .prose h1 {
+            font-size: 1.5em;
+        }
+        .prose h2 {
+            font-size: 1.25em;
+        }
+        .prose h3 {
+            font-size: 1.125em;
+        }
+        .prose blockquote {
+            border-left: 4px solid #e5e7eb;
+            padding-left: 1em;
+            font-style: italic;
+            color: #6b7280;
+            margin: 1.5em 0;
+        }
+        .prose img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            margin: 1.5em 0;
+        }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -129,6 +185,13 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
         );
+        
+        const Settings = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+        );
 
         function SimplePodcastApp() {
             const [feeds, setFeeds] = useState([]);
@@ -142,6 +205,7 @@
             const [isLogin, setIsLogin] = useState(true);
             const [authLoading, setAuthLoading] = useState(false);
             const [showModal, setShowModal] = useState(false);
+            const [showSettings, setShowSettings] = useState(false);
             const [currentPodcast, setCurrentPodcast] = useState(null);
             const [progress, setProgress] = useState(0);
             const [duration, setDuration] = useState(0);
@@ -149,6 +213,8 @@
             const [searchQuery, setSearchQuery] = useState('');
             const [sortBy, setSortBy] = useState('recent'); // recent, name, progress
             const [viewMode, setViewMode] = useState('list'); // list or grid
+            const [showFullDescription, setShowFullDescription] = useState(false);
+            const [showDescriptionModal, setShowDescriptionModal] = useState(false);
 
             // Check if user is already logged in
             useEffect(() => {
@@ -412,7 +478,15 @@
                         
                         podcastTitle = channel.querySelector('title')?.textContent || 'Unknown Podcast';
                         episodeTitle = latestItem.querySelector('title')?.textContent || 'Untitled Episode';
-                        description = latestItem.querySelector('description')?.textContent || '';
+                        
+                        // Try to get content:encoded first (full HTML), fallback to description
+                        const contentEncoded = latestItem.querySelector('encoded, content\\:encoded');
+                        if (contentEncoded) {
+                            description = contentEncoded.textContent || '';
+                        } else {
+                            description = latestItem.querySelector('description')?.textContent || '';
+                        }
+                        
                         pubDate = latestItem.querySelector('pubDate')?.textContent || '';
                         
                         // Get audio URL from enclosure tag
@@ -450,7 +524,7 @@
                         feedUrl: url,
                         podcastTitle,
                         episodeTitle,
-                        description: description.replace(/<[^>]*>/g, '').substring(0, 200) + '...',
+                        description: description, // Keep full HTML description
                         pubDate: new Date(pubDate).toLocaleDateString(),
                         audioUrl,
                         artwork: itunesImage,
@@ -513,12 +587,21 @@
                 for (const feed of feedsToRefresh) {
                     try {
                         const updatedFeed = await parseRSSFeed(feed.feedUrl);
-                        // Preserve the original ID and playback position
+                        // Preserve the original ID
                         updatedFeed.id = feed.id;
-                        updatedFeed.playbackPosition = feed.playbackPosition || 0;
+                        
+                        // Check if it's a new episode - if so, reset playback position
+                        if (updatedFeed.episodeTitle !== feed.episodeTitle || updatedFeed.audioUrl !== feed.audioUrl) {
+                            updatedFeed.playbackPosition = 0;
+                            console.log('New episode detected for:', feed.podcastTitle, '- resetting progress');
+                        } else {
+                            // Same episode, preserve playback position
+                            updatedFeed.playbackPosition = feed.playbackPosition || 0;
+                        }
+                        
                         refreshedFeeds.push(updatedFeed);
                         
-                        // Update in Supabase (don't update playback_position here)
+                        // Update in Supabase
                         await supabase
                             .from('podcasts')
                             .update({
@@ -527,7 +610,8 @@
                                 pub_date: updatedFeed.pubDate,
                                 audio_url: updatedFeed.audioUrl,
                                 artwork: updatedFeed.artwork,
-                                last_updated: updatedFeed.lastUpdated
+                                last_updated: updatedFeed.lastUpdated,
+                                playback_position: updatedFeed.playbackPosition
                             })
                             .eq('id', feed.id);
                         
@@ -550,9 +634,17 @@
                 try {
                     const updatedFeed = await parseRSSFeed(feed.feedUrl);
                     updatedFeed.id = feed.id; // Preserve the ID
-                    updatedFeed.playbackPosition = feed.playbackPosition || 0; // Preserve playback position
                     
-                    // Update in Supabase (don't update playback_position here)
+                    // Check if it's a new episode - if so, reset playback position
+                    if (updatedFeed.episodeTitle !== feed.episodeTitle || updatedFeed.audioUrl !== feed.audioUrl) {
+                        updatedFeed.playbackPosition = 0;
+                        console.log('New episode detected - resetting progress');
+                    } else {
+                        // Same episode, preserve playback position
+                        updatedFeed.playbackPosition = feed.playbackPosition || 0;
+                    }
+                    
+                    // Update in Supabase
                     await supabase
                         .from('podcasts')
                         .update({
@@ -561,7 +653,8 @@
                             pub_date: updatedFeed.pubDate,
                             audio_url: updatedFeed.audioUrl,
                             artwork: updatedFeed.artwork,
-                            last_updated: updatedFeed.lastUpdated
+                            last_updated: updatedFeed.lastUpdated,
+                            playback_position: updatedFeed.playbackPosition
                         })
                         .eq('id', feedId);
                     
@@ -665,13 +758,13 @@
             
             const skipForward = () => {
                 if (currentAudio) {
-                    currentAudio.currentTime = Math.min(currentAudio.currentTime + 15, duration);
+                    currentAudio.currentTime = Math.min(currentAudio.currentTime + 30, duration);
                 }
             };
             
             const skipBackward = () => {
                 if (currentAudio) {
-                    currentAudio.currentTime = Math.max(currentAudio.currentTime - 15, 0);
+                    currentAudio.currentTime = Math.max(currentAudio.currentTime - 10, 0);
                 }
             };
             
@@ -782,16 +875,6 @@
                     ) : (
                         // Main App
                     <div className="max-w-2xl mx-auto">
-                        {/* Logout Button */}
-                        <div className="flex justify-end mb-4">
-                            <button
-                                onClick={handleLogout}
-                                className="text-sm text-gray-600 hover:text-gray-800 underline"
-                            >
-                                Logout ({username})
-                            </button>
-                        </div>
-
                         {/* Main Player Card */}
                         <div className="bg-white rounded-2xl shadow-2xl p-8 mb-6">
                             {currentPodcast ? (
@@ -802,11 +885,11 @@
                                             <img 
                                                 src={currentPodcast.artwork} 
                                                 alt={currentPodcast.podcastTitle}
-                                                className="w-64 h-64 rounded-2xl object-cover shadow-lg"
+                                                className="w-96 h-96 rounded-2xl object-cover shadow-lg"
                                             />
                                         ) : (
-                                            <div className="w-64 h-64 rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
-                                                <span className="text-white text-6xl font-bold">
+                                            <div className="w-96 h-96 rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
+                                                <span className="text-white text-8xl font-bold">
                                                     {currentPodcast.podcastTitle.charAt(0)}
                                                 </span>
                                             </div>
@@ -821,9 +904,23 @@
                                         <p className="text-lg text-purple-600 mb-2">
                                             {currentPodcast.podcastTitle}
                                         </p>
-                                        <p className="text-sm text-gray-500">
+                                        <p className="text-sm text-gray-500 mb-3">
                                             {currentPodcast.pubDate}
                                         </p>
+                                        {/* Episode Description */}
+                                        <div className="text-sm text-gray-600 max-w-lg mx-auto">
+                                            <p className="truncate">
+                                                {currentPodcast.description.replace(/<[^>]*>/g, '')}
+                                            </p>
+                                            {currentPodcast.description && currentPodcast.description.length > 100 && (
+                                                <button
+                                                    onClick={() => setShowDescriptionModal(true)}
+                                                    className="text-purple-600 hover:text-purple-700 font-medium"
+                                                >
+                                                    more...
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     
                                     {/* Progress Bar */}
@@ -848,7 +945,7 @@
                                         <button
                                             onClick={skipBackward}
                                             className="p-3 hover:bg-gray-100 rounded-full transition-colors"
-                                            title="Skip back 15s"
+                                            title="Skip back 10s"
                                         >
                                             <SkipBack size={24} />
                                         </button>
@@ -863,7 +960,7 @@
                                         <button
                                             onClick={skipForward}
                                             className="p-3 hover:bg-gray-100 rounded-full transition-colors"
-                                            title="Skip forward 15s"
+                                            title="Skip forward 30s"
                                         >
                                             <SkipForward size={24} />
                                         </button>
@@ -871,8 +968,8 @@
                                 </>
                             ) : (
                                 <div className="text-center py-16">
-                                    <div className="w-64 h-64 mx-auto rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center mb-6">
-                                        <Play size={64} className="text-purple-300" />
+                                    <div className="w-96 h-96 mx-auto rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center mb-6">
+                                        <Play size={96} className="text-purple-300" />
                                     </div>
                                     <h2 className="text-2xl font-bold text-gray-800 mb-2">
                                         No podcast selected
@@ -884,38 +981,24 @@
                             )}
                         </div>
                         
-                        {/* Add Feed Section */}
-                        <div className="bg-white rounded-lg shadow-md p-6 mb-4">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Podcast</h3>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newFeedUrl}
-                                    onChange={(e) => setNewFeedUrl(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && addFeed()}
-                                    placeholder="Enter podcast RSS feed URL..."
-                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    disabled={loading}
-                                />
-                                <button
-                                    onClick={addFeed}
-                                    disabled={loading}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <Plus size={20} />
-                                    {loading ? 'Adding...' : 'Add'}
-                                </button>
-                            </div>
+                        {/* Bottom Action Buttons */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="bg-white hover:bg-gray-50 text-gray-800 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
+                            >
+                                <List size={20} />
+                                My Podcasts ({feeds.length})
+                            </button>
+                            
+                            <button
+                                onClick={() => setShowSettings(true)}
+                                className="bg-white hover:bg-gray-50 text-gray-800 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
+                            >
+                                <Settings size={20} />
+                                Settings
+                            </button>
                         </div>
-                        
-                        {/* My Podcasts Button */}
-                        <button
-                            onClick={() => setShowModal(true)}
-                            className="w-full bg-white hover:bg-gray-50 text-gray-800 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
-                        >
-                            <List size={20} />
-                            My Podcasts ({feeds.length})
-                        </button>
                         
                         {/* Modal for Podcast List */}
                         {showModal && (
@@ -1169,6 +1252,137 @@
                                                 ))}
                                             </div>
                                         )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Settings Modal */}
+                        {showSettings && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full overflow-hidden">
+                                    {/* Modal Header */}
+                                    <div className="flex items-center justify-between p-6 border-b">
+                                        <h3 className="text-2xl font-bold text-gray-800">Settings</h3>
+                                        <button
+                                            onClick={() => setShowSettings(false)}
+                                            className="text-gray-500 hover:text-gray-700 p-2"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Modal Content */}
+                                    <div className="p-6 space-y-6">
+                                        {/* Account Section */}
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-800 mb-3">Account</h4>
+                                            <div className="bg-gray-50 rounded-lg p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-sm text-gray-600">Logged in as</p>
+                                                        <p className="text-lg font-medium text-gray-800">{username}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            handleLogout();
+                                                            setShowSettings(false);
+                                                        }}
+                                                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                                                    >
+                                                        Logout
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Add Podcast Section */}
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-800 mb-3">Add Podcast</h4>
+                                            <div className="space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={newFeedUrl}
+                                                    onChange={(e) => setNewFeedUrl(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && addFeed()}
+                                                    placeholder="Enter podcast RSS feed URL..."
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                    disabled={loading}
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        addFeed();
+                                                        if (!loading) {
+                                                            setTimeout(() => setShowSettings(false), 1000);
+                                                        }
+                                                    }}
+                                                    disabled={loading}
+                                                    className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                                                >
+                                                    <Plus size={20} />
+                                                    {loading ? 'Adding...' : 'Add Podcast'}
+                                                </button>
+                                                <p className="text-xs text-gray-500 text-center">
+                                                    Find RSS feeds on podcast websites or directories
+                                                </p>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* About Section */}
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-800 mb-3">About</h4>
+                                            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
+                                                <p className="mb-2">Latest Episodes Podcast Player</p>
+                                                <p>A simple podcast player that shows only the newest episode from each podcast.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Description Modal */}
+                        {showDescriptionModal && currentPodcast && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                                    {/* Modal Header */}
+                                    <div className="flex items-center justify-between p-6 border-b">
+                                        <div className="flex-1 min-w-0 pr-4">
+                                            <h3 className="text-xl font-bold text-gray-800 truncate">
+                                                {currentPodcast.episodeTitle}
+                                            </h3>
+                                            <p className="text-sm text-purple-600 truncate">
+                                                {currentPodcast.podcastTitle}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowDescriptionModal(false)}
+                                            className="text-gray-500 hover:text-gray-700 p-2 flex-shrink-0"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Modal Content */}
+                                    <div className="flex-1 overflow-y-auto p-6">
+                                        <div 
+                                            className="prose prose-sm max-w-none text-gray-700"
+                                            dangerouslySetInnerHTML={{ __html: currentPodcast.description }}
+                                            style={{
+                                                wordWrap: 'break-word',
+                                                overflowWrap: 'break-word'
+                                            }}
+                                        />
+                                    </div>
+                                    
+                                    {/* Modal Footer */}
+                                    <div className="p-4 border-t flex justify-end">
+                                        <button
+                                            onClick={() => setShowDescriptionModal(false)}
+                                            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors font-medium"
+                                        >
+                                            Close
+                                        </button>
                                     </div>
                                 </div>
                             </div>
