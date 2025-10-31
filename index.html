@@ -134,6 +134,12 @@
         const { useState, useEffect } = React;
         
         // Initialize Supabase
+        // Required database tables:
+        // 1. users (username, password, created_at)
+        // 2. podcasts (user_id, feed_url, podcast_title, episode_title, description, pub_date, pub_date_iso, 
+        //              audio_url, artwork, last_updated, playback_position, duration, last_played)
+        // 3. saved_episodes (user_id, podcast_title, episode_title, description, pub_date, pub_date_iso,
+        //                    audio_url, artwork, feed_url, created_at)
         const SUPABASE_URL = 'https://dawhivhhtvjqbfbdmorg.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhd2hpdmhodHZqcWJmYmRtb3JnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NDU1NzcsImV4cCI6MjA3NzQyMTU3N30.Qj_uY7EHYvtkasjFoeVHcKvUZeCpthOcHMqI7xXYdQk';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -294,6 +300,12 @@
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
         );
+        
+        const Bookmark = ({ size = 24, filled = false }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+            </svg>
+        );
 
         function SimplePodcastApp() {
             const [feeds, setFeeds] = useState([]);
@@ -323,6 +335,9 @@
                 return localStorage.getItem('podcastTheme') || 'auto';
             });
             const [toasts, setToasts] = useState([]);
+            const [showManageModal, setShowManageModal] = useState(false);
+            const [savedEpisodes, setSavedEpisodes] = useState([]);
+            const [showSavedModal, setShowSavedModal] = useState(false);
 
             // Check if user is already logged in
             useEffect(() => {
@@ -412,6 +427,7 @@
             useEffect(() => {
                 if (isAuthenticated) {
                     loadFeedsFromSupabase();
+                    loadSavedEpisodes();
                 }
             }, [isAuthenticated]);
             
@@ -1109,6 +1125,84 @@
                 }, 3000);
             };
             
+            const saveEpisode = async (feed) => {
+                const userId = getUserId();
+                
+                // Check if already saved
+                const existing = savedEpisodes.find(ep => 
+                    ep.podcast_title === feed.podcastTitle && 
+                    ep.episode_title === feed.episodeTitle
+                );
+                
+                if (existing) {
+                    showToast('Episode already saved', 'info');
+                    return;
+                }
+                
+                try {
+                    const { data, error } = await supabase
+                        .from('saved_episodes')
+                        .insert([{
+                            user_id: userId,
+                            podcast_title: feed.podcastTitle,
+                            episode_title: feed.episodeTitle,
+                            description: feed.description,
+                            pub_date: feed.pubDate,
+                            pub_date_iso: feed.pubDateISO,
+                            audio_url: feed.audioUrl,
+                            artwork: feed.artwork,
+                            feed_url: feed.feedUrl
+                        }])
+                        .select();
+                    
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        setSavedEpisodes([...savedEpisodes, data[0]]);
+                        showToast('Episode saved!', 'success');
+                    }
+                } catch (error) {
+                    showToast(`Failed to save: ${error.message}`, 'error');
+                }
+            };
+            
+            const unsaveEpisode = async (episodeId) => {
+                try {
+                    const { error } = await supabase
+                        .from('saved_episodes')
+                        .delete()
+                        .eq('id', episodeId);
+                    
+                    if (error) throw error;
+                    
+                    setSavedEpisodes(savedEpisodes.filter(ep => ep.id !== episodeId));
+                    showToast('Episode removed', 'success');
+                } catch (error) {
+                    showToast(`Failed to remove: ${error.message}`, 'error');
+                }
+            };
+            
+            const loadSavedEpisodes = async () => {
+                const userId = getUserId();
+                
+                const { data, error } = await supabase
+                    .from('saved_episodes')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false });
+                
+                if (!error && data) {
+                    setSavedEpisodes(data);
+                }
+            };
+            
+            const isEpisodeSaved = (feed) => {
+                return savedEpisodes.some(ep => 
+                    ep.podcast_title === feed.podcastTitle && 
+                    ep.episode_title === feed.episodeTitle
+                );
+            };
+            
             // Filter and sort podcasts
             const getFilteredAndSortedFeeds = () => {
                 let filtered = feeds;
@@ -1279,7 +1373,7 @@
                                     <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                                         <button
                                             onClick={skipBackward}
-                                            className="p-2 sm:p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
+                                            className="p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-slate-600 dark:bg-slate-700 rounded-full transition-colors"
                                             title="Skip back 10s"
                                         >
                                             <SkipBack size={20} className="sm:w-6 sm:h-6" />
@@ -1294,10 +1388,28 @@
                                         
                                         <button
                                             onClick={skipForward}
-                                            className="p-2 sm:p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
+                                            className="p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-slate-600 dark:bg-slate-700 rounded-full transition-colors"
                                             title="Skip forward 30s"
                                         >
                                             <SkipForward size={20} className="sm:w-6 sm:h-6" />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Save Episode Button */}
+                                    <div className="flex justify-center mb-4">
+                                        <button
+                                            onClick={() => saveEpisode(currentPodcast)}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                                                isEpisodeSaved(currentPodcast)
+                                                    ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300'
+                                                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                                            }`}
+                                            title={isEpisodeSaved(currentPodcast) ? 'Episode saved' : 'Save episode for later'}
+                                        >
+                                            <Bookmark size={18} filled={isEpisodeSaved(currentPodcast)} />
+                                            <span className="text-sm font-medium">
+                                                {isEpisodeSaved(currentPodcast) ? 'Saved' : 'Save Episode'}
+                                            </span>
                                         </button>
                                     </div>
                                 </>
@@ -1317,21 +1429,31 @@
                         </div>
                         
                         {/* Bottom Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
                             <button
                                 onClick={() => setShowModal(true)}
-                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-3 sm:px-6 py-3 sm:py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium text-sm sm:text-base"
+                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 px-2 sm:px-4 py-3 sm:py-4 rounded-lg flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 shadow-md transition-colors font-medium text-xs sm:text-base"
                             >
                                 <List size={18} className="sm:w-5 sm:h-5" />
-                                My Podcasts ({feeds.length})
+                                <span>My Podcasts</span>
+                                <span className="hidden sm:inline">({feeds.length})</span>
+                            </button>
+                            
+                            <button
+                                onClick={() => setShowSavedModal(true)}
+                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 px-2 sm:px-4 py-3 sm:py-4 rounded-lg flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 shadow-md transition-colors font-medium text-xs sm:text-base"
+                            >
+                                <Bookmark size={18} className="sm:w-5 sm:h-5" />
+                                <span>Saved</span>
+                                <span className="hidden sm:inline">({savedEpisodes.length})</span>
                             </button>
                             
                             <button
                                 onClick={() => setShowSettings(true)}
-                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-3 sm:px-6 py-3 sm:py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium text-sm sm:text-base"
+                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 px-2 sm:px-4 py-3 sm:py-4 rounded-lg flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 shadow-md transition-colors font-medium text-xs sm:text-base"
                             >
-                                <Settings size={20} />
-                                Settings
+                                <Settings size={18} className="sm:w-5 sm:h-5" />
+                                <span>Settings</span>
                             </button>
                         </div>
                         
@@ -1494,30 +1616,6 @@
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        
-                                                        {/* Actions */}
-                                                        <div className="flex gap-2 flex-shrink-0">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    refreshSingleFeed(feed.id);
-                                                                }}
-                                                                className="text-purple-600 hover:text-purple-700 p-2 transition-colors"
-                                                                title="Refresh"
-                                                            >
-                                                                <RefreshCw size={18} />
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    removeFeed(feed.id);
-                                                                }}
-                                                                className="text-red-500 hover:text-red-700 p-2 transition-colors"
-                                                                title="Remove"
-                                                            >
-                                                                <Trash2 size={18} />
-                                                            </button>
-                                                        </div>
                                                     </div>
                                                     );
                                                 })}
@@ -1582,30 +1680,6 @@
                                                                     ></div>
                                                                 </div>
                                                             )}
-                                                            
-                                                            {/* Actions */}
-                                                            <div className="flex gap-1 justify-end">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        refreshSingleFeed(feed.id);
-                                                                    }}
-                                                                    className="text-purple-600 hover:text-purple-700 p-1 transition-colors"
-                                                                    title="Refresh"
-                                                                >
-                                                                    <RefreshCw size={14} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        removeFeed(feed.id);
-                                                                    }}
-                                                                    className="text-red-500 hover:text-red-700 p-1 transition-colors"
-                                                                    title="Remove"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
-                                                            </div>
                                                         </div>
                                                     </div>
                                                     );
@@ -1733,6 +1807,16 @@
                                                     <Plus size={20} />
                                                     {loading ? 'Adding...' : 'Add Podcast'}
                                                 </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowManageModal(true);
+                                                        setShowSettings(false);
+                                                    }}
+                                                    className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-100 px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium"
+                                                >
+                                                    <Settings size={20} />
+                                                    Manage Podcasts
+                                                </button>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                                                     Find RSS feeds on podcast websites or directories
                                                 </p>
@@ -1747,6 +1831,351 @@
                                                 <p>A simple podcast player that shows only the newest episode from each podcast.</p>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Manage Podcasts Modal */}
+                        {showManageModal && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                                    {/* Modal Header */}
+                                    <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Manage Podcasts</h3>
+                                        <button
+                                            onClick={() => setShowManageModal(false)}
+                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-2"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Search and Controls */}
+                                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
+                                        {/* Search Bar */}
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                                            <input
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="Search podcasts..."
+                                                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-100"
+                                            />
+                                        </div>
+                                        
+                                        {/* Controls Row */}
+                                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                                            {/* Sort Dropdown */}
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-sm text-gray-600 dark:text-gray-300">Sort by:</label>
+                                                <select
+                                                    value={sortBy}
+                                                    onChange={(e) => setSortBy(e.target.value)}
+                                                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-100"
+                                                >
+                                                    <option value="releaseDate">Release Date</option>
+                                                    <option value="recentlyPlayed">Recently Played</option>
+                                                    <option value="name">Name</option>
+                                                    <option value="progress">Most Played</option>
+                                                </select>
+                                            </div>
+                                            
+                                            {/* View Toggle and Refresh All */}
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => refreshAllFeeds(feeds)}
+                                                    className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 p-2 transition-colors"
+                                                    title="Refresh all podcasts"
+                                                >
+                                                    <RefreshCw size={20} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setViewMode('list')}
+                                                    className={`p-2 transition-colors ${
+                                                        viewMode === 'list'
+                                                            ? 'text-purple-600 dark:text-purple-400'
+                                                            : 'text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200'
+                                                    }`}
+                                                    title="List view"
+                                                >
+                                                    <List size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setViewMode('grid')}
+                                                    className={`p-2 transition-colors ${
+                                                        viewMode === 'grid'
+                                                            ? 'text-purple-600 dark:text-purple-400'
+                                                            : 'text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200'
+                                                    }`}
+                                                    title="Grid view"
+                                                >
+                                                    <Grid size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Modal Content */}
+                                    <div className="flex-1 overflow-y-auto p-6">
+                                        {feeds.length === 0 ? (
+                                            <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                                                No podcasts yet. Add your first RSS feed!
+                                            </p>
+                                        ) : getFilteredAndSortedFeeds().length === 0 ? (
+                                            <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                                                No podcasts match your search.
+                                            </p>
+                                        ) : viewMode === 'list' ? (
+                                            // List View
+                                            <div className="space-y-3">
+                                                {getFilteredAndSortedFeeds().map((feed) => {
+                                                    return (
+                                                    <div 
+                                                        key={feed.id} 
+                                                        className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all ${
+                                                            currentPodcast?.id === feed.id 
+                                                                ? 'border-purple-600 bg-purple-50 dark:bg-slate-700 dark:border-purple-400' 
+                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                                                        }`}
+                                                    >
+                                                        {/* Artwork */}
+                                                        <div className="flex-shrink-0">
+                                                            {feed.artwork ? (
+                                                                <img 
+                                                                    src={feed.artwork} 
+                                                                    alt={feed.podcastTitle}
+                                                                    className="w-16 h-16 rounded-lg object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
+                                                                    <span className="text-white text-xl font-bold">
+                                                                        {feed.podcastTitle.charAt(0)}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-base font-semibold text-gray-800 dark:text-gray-100 truncate mb-1">
+                                                                {feed.podcastTitle}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                                                Last updated: {feed.pubDate}
+                                                            </p>
+                                                            {/* Progress indicator */}
+                                                            {feed.playbackPosition > 0 && (
+                                                                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1">
+                                                                    <div 
+                                                                        className="bg-purple-600 h-1 rounded-full"
+                                                                        style={{ width: `${getProgressPercentage(feed.id, feed.playbackPosition)}%` }}
+                                                                        title={`${formatTime(feed.playbackPosition)} played`}
+                                                                    ></div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Actions */}
+                                                        <div className="flex gap-2 flex-shrink-0">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    refreshSingleFeed(feed.id);
+                                                                }}
+                                                                className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 p-2 transition-colors"
+                                                                title="Refresh"
+                                                            >
+                                                                <RefreshCw size={18} />
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    removeFeed(feed.id);
+                                                                }}
+                                                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 transition-colors"
+                                                                title="Remove"
+                                                            >
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            // Grid View
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                {getFilteredAndSortedFeeds().map((feed) => {
+                                                    return (
+                                                    <div 
+                                                        key={feed.id} 
+                                                        className={`relative rounded-lg border-2 transition-all overflow-hidden ${
+                                                            currentPodcast?.id === feed.id 
+                                                                ? 'border-purple-600 bg-purple-50 dark:bg-slate-700 dark:border-purple-400' 
+                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                                                        }`}
+                                                    >
+                                                        {/* Artwork */}
+                                                        {feed.artwork ? (
+                                                            <img 
+                                                                src={feed.artwork} 
+                                                                alt={feed.podcastTitle}
+                                                                className="w-full aspect-square object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full aspect-square bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
+                                                                <span className="text-white text-4xl font-bold">
+                                                                    {feed.podcastTitle.charAt(0)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {/* Info Overlay */}
+                                                        <div className="p-3">
+                                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2 truncate">
+                                                                {feed.podcastTitle}
+                                                            </p>
+                                                            
+                                                            {/* Progress indicator */}
+                                                            {feed.playbackPosition > 0 && (
+                                                                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1 mb-2">
+                                                                    <div 
+                                                                        className="bg-purple-600 h-1 rounded-full"
+                                                                        style={{ width: `${getProgressPercentage(feed.id, feed.playbackPosition)}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                            )}
+                                                            
+                                                            {/* Actions */}
+                                                            <div className="flex gap-1 justify-end">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        refreshSingleFeed(feed.id);
+                                                                    }}
+                                                                    className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 p-1 transition-colors"
+                                                                    title="Refresh"
+                                                                >
+                                                                    <RefreshCw size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        removeFeed(feed.id);
+                                                                    }}
+                                                                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 transition-colors"
+                                                                    title="Remove"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Saved Episodes Modal */}
+                        {showSavedModal && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                                    {/* Modal Header */}
+                                    <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Saved Episodes</h3>
+                                        <button
+                                            onClick={() => setShowSavedModal(false)}
+                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-2"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Modal Content */}
+                                    <div className="flex-1 overflow-y-auto p-6">
+                                        {savedEpisodes.length === 0 ? (
+                                            <div className="text-center py-12">
+                                                <Bookmark size={64} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                                                <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">No saved episodes yet</p>
+                                                <p className="text-gray-400 dark:text-gray-500 text-sm">
+                                                    Save episodes to listen to later
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {savedEpisodes.map((episode) => (
+                                                    <div 
+                                                        key={episode.id}
+                                                        className="flex items-center gap-4 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                                                        onClick={() => {
+                                                            // Create a feed object from saved episode to play it
+                                                            const episodeFeed = {
+                                                                id: `saved-${episode.id}`,
+                                                                podcastTitle: episode.podcast_title,
+                                                                episodeTitle: episode.episode_title,
+                                                                description: episode.description,
+                                                                pubDate: episode.pub_date,
+                                                                pubDateISO: episode.pub_date_iso,
+                                                                audioUrl: episode.audio_url,
+                                                                artwork: episode.artwork,
+                                                                feedUrl: episode.feed_url,
+                                                                playbackPosition: 0
+                                                            };
+                                                            togglePlay(episodeFeed);
+                                                            setShowSavedModal(false);
+                                                        }}
+                                                    >
+                                                        {/* Artwork */}
+                                                        <div className="flex-shrink-0">
+                                                            {episode.artwork ? (
+                                                                <img 
+                                                                    src={episode.artwork} 
+                                                                    alt={episode.podcast_title}
+                                                                    className="w-16 h-16 rounded-lg object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
+                                                                    <span className="text-white text-xl font-bold">
+                                                                        {episode.podcast_title.charAt(0)}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs text-purple-600 dark:text-purple-400 mb-1 truncate">
+                                                                {episode.podcast_title}
+                                                            </p>
+                                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate mb-1">
+                                                                {episode.episode_title}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                {episode.pub_date}
+                                                            </p>
+                                                        </div>
+                                                        
+                                                        {/* Remove Button */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                unsaveEpisode(episode.id);
+                                                            }}
+                                                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 transition-colors flex-shrink-0"
+                                                            title="Remove from saved"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
