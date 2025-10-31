@@ -892,6 +892,51 @@
                                 }
                             });
                         
+                        // Set up Media Session API for notifications
+                        if ('mediaSession' in navigator) {
+                            navigator.mediaSession.metadata = new MediaMetadata({
+                                title: feed.episodeTitle,
+                                artist: feed.podcastTitle,
+                                album: feed.podcastTitle,
+                                artwork: feed.artwork ? [
+                                    { src: feed.artwork, sizes: '96x96', type: 'image/jpeg' },
+                                    { src: feed.artwork, sizes: '128x128', type: 'image/jpeg' },
+                                    { src: feed.artwork, sizes: '192x192', type: 'image/jpeg' },
+                                    { src: feed.artwork, sizes: '256x256', type: 'image/jpeg' },
+                                    { src: feed.artwork, sizes: '384x384', type: 'image/jpeg' },
+                                    { src: feed.artwork, sizes: '512x512', type: 'image/jpeg' }
+                                ] : []
+                            });
+                            
+                            // Set up action handlers
+                            navigator.mediaSession.setActionHandler('play', () => {
+                                audio.play();
+                                setIsPlaying(true);
+                                setPlayingId(feed.id);
+                            });
+                            
+                            navigator.mediaSession.setActionHandler('pause', () => {
+                                audio.pause();
+                                setIsPlaying(false);
+                                setPlayingId(null);
+                                savePlaybackPosition(feed.id, audio.currentTime);
+                            });
+                            
+                            navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                                audio.currentTime = Math.max(audio.currentTime - 10, 0);
+                            });
+                            
+                            navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                                audio.currentTime = Math.min(audio.currentTime + 30, audio.duration);
+                            });
+                            
+                            navigator.mediaSession.setActionHandler('seekto', (details) => {
+                                if (details.seekTime) {
+                                    audio.currentTime = details.seekTime;
+                                }
+                            });
+                        }
+                        
                         // Restore playback position
                         if (feed.playbackPosition && feed.playbackPosition > 0) {
                             audio.currentTime = feed.playbackPosition;
@@ -901,6 +946,19 @@
                     
                     audio.addEventListener('timeupdate', () => {
                         setProgress(audio.currentTime);
+                        
+                        // Update Media Session position state
+                        if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+                            try {
+                                navigator.mediaSession.setPositionState({
+                                    duration: audio.duration,
+                                    playbackRate: audio.playbackRate,
+                                    position: audio.currentTime
+                                });
+                            } catch (error) {
+                                // Ignore errors (some browsers might not support this)
+                            }
+                        }
                         
                         // Save progress every 5 seconds
                         if (Math.floor(audio.currentTime) % 5 === 0) {
@@ -1095,16 +1153,16 @@
                             {currentPodcast ? (
                                 <>
                                     {/* Podcast Artwork */}
-                                    <div className="flex justify-center mb-6">
+                                    <div className="flex justify-center mb-6 px-4">
                                         {currentPodcast.artwork ? (
                                             <img 
                                                 src={currentPodcast.artwork} 
                                                 alt={currentPodcast.podcastTitle}
-                                                className="w-96 h-96 rounded-2xl object-cover shadow-lg"
+                                                className="w-full max-w-sm aspect-square rounded-2xl object-cover shadow-lg"
                                             />
                                         ) : (
-                                            <div className="w-96 h-96 rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
-                                                <span className="text-white text-8xl font-bold">
+                                            <div className="w-full max-w-sm aspect-square rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center shadow-lg">
+                                                <span className="text-white text-6xl sm:text-8xl font-bold">
                                                     {currentPodcast.podcastTitle.charAt(0)}
                                                 </span>
                                             </div>
