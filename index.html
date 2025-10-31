@@ -112,6 +112,22 @@
     </script>
 </head>
 <body class="bg-gray-50 dark:bg-slate-700 dark:bg-slate-900">
+    <script>
+        // Apply theme immediately before React loads to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('podcastTheme') || 'auto';
+            const root = document.documentElement;
+            
+            if (savedTheme === 'auto') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (isDark) {
+                    root.classList.add('dark');
+                }
+            } else if (savedTheme === 'dark') {
+                root.classList.add('dark');
+            }
+        })();
+    </script>
     <div id="root"></div>
 
     <script type="text/babel">
@@ -262,6 +278,22 @@
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
         );
+        
+        const Info = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+        );
+        
+        const AlertCircle = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        );
 
         function SimplePodcastApp() {
             const [feeds, setFeeds] = useState([]);
@@ -290,6 +322,7 @@
                 // Load theme from localStorage, default to 'auto'
                 return localStorage.getItem('podcastTheme') || 'auto';
             });
+            const [toasts, setToasts] = useState([]);
 
             // Check if user is already logged in
             useEffect(() => {
@@ -461,8 +494,12 @@
                     
                     setFeeds(formattedFeeds);
                     console.log('Loaded feeds with durations:', durations);
-                    // Don't refresh automatically on page load - it can clear durations
-                    // refreshAllFeeds(formattedFeeds);
+                    
+                    // Refresh all feeds on page load to check for new episodes
+                    if (formattedFeeds.length > 0) {
+                        showToast('Checking for new episodes...', 'info');
+                        refreshAllFeeds(formattedFeeds);
+                    }
                 }
             };
 
@@ -668,6 +705,7 @@
                 if (!newFeedUrl.trim()) return;
                 
                 setLoading(true);
+                showToast('Adding podcast...', 'info');
                 try {
                     const feedData = await parseRSSFeed(newFeedUrl);
                     const userId = getUserId();
@@ -703,8 +741,9 @@
                     }
                     
                     setNewFeedUrl('');
+                    showToast('Podcast added successfully!', 'success');
                 } catch (error) {
-                    alert(error.message);
+                    showToast(error.message, 'error');
                 } finally {
                     setLoading(false);
                 }
@@ -712,7 +751,9 @@
 
             const refreshAllFeeds = async (feedsToRefresh) => {
                 console.log('Refreshing all feeds...');
+                showToast(`Refreshing ${feedsToRefresh.length} podcast${feedsToRefresh.length > 1 ? 's' : ''}...`, 'info');
                 const refreshedFeeds = [];
+                let newEpisodeCount = 0;
                 
                 for (const feed of feedsToRefresh) {
                     try {
@@ -726,6 +767,7 @@
                         if (updatedFeed.episodeTitle !== feed.episodeTitle || updatedFeed.audioUrl !== feed.audioUrl) {
                             updatedFeed.playbackPosition = 0;
                             updatedFeed.duration = 0; // Reset duration for new episode
+                            newEpisodeCount++;
                             console.log('New episode detected for:', feed.podcastTitle, '- resetting progress');
                         } else {
                             // Same episode, preserve playback position and use existing pubDateISO if available
@@ -772,12 +814,19 @@
                 
                 setFeeds(refreshedFeeds);
                 console.log('All feeds refreshed');
+                
+                if (newEpisodeCount > 0) {
+                    showToast(`Refresh complete! ${newEpisodeCount} new episode${newEpisodeCount > 1 ? 's' : ''} found`, 'success');
+                } else {
+                    showToast('All podcasts are up to date', 'success');
+                }
             };
 
             const refreshSingleFeed = async (feedId) => {
                 const feed = feeds.find(f => f.id === feedId);
                 if (!feed) return;
                 
+                showToast(`Refreshing ${feed.podcastTitle}...`, 'info');
                 try {
                     const updatedFeed = await parseRSSFeed(feed.feedUrl);
                     updatedFeed.id = feed.id; // Preserve the ID
@@ -789,12 +838,14 @@
                         updatedFeed.playbackPosition = 0;
                         updatedFeed.duration = 0; // Reset duration for new episode
                         console.log('New episode detected - resetting progress');
+                        showToast('New episode available!', 'success');
                     } else {
                         // Same episode, preserve playback position and use existing pubDateISO if available
                         updatedFeed.playbackPosition = feed.playbackPosition || 0;
                         if (feed.pubDateISO) {
                             updatedFeed.pubDateISO = feed.pubDateISO;
                         }
+                        showToast('Podcast refreshed', 'success');
                     }
                     
                     // Update in Supabase
@@ -815,7 +866,7 @@
                     
                     setFeeds(feeds.map(f => f.id === feedId ? updatedFeed : f));
                 } catch (error) {
-                    alert(`Failed to refresh: ${error.message}`);
+                    showToast(`Failed to refresh: ${error.message}`, 'error');
                 }
             };
 
@@ -1045,6 +1096,17 @@
                 if (!feedDuration || !playbackPosition) return false;
                 // Consider completed if played 95% or more
                 return (playbackPosition / feedDuration) >= 0.95;
+            };
+            
+            const showToast = (message, type = 'info') => {
+                const id = Date.now();
+                const toast = { id, message, type };
+                setToasts(prev => [...prev, toast]);
+                
+                // Auto-remove after 3 seconds
+                setTimeout(() => {
+                    setToasts(prev => prev.filter(t => t.id !== id));
+                }, 3000);
             };
             
             // Filter and sort podcasts
@@ -1736,6 +1798,31 @@
                                 </div>
                             </div>
                         )}
+                        
+                        {/* Toast Notifications */}
+                        <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
+                            {toasts.map(toast => (
+                                <div 
+                                    key={toast.id}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm animate-slide-in ${
+                                        toast.type === 'success' ? 'bg-green-500/90 text-white' :
+                                        toast.type === 'error' ? 'bg-red-500/90 text-white' :
+                                        'bg-blue-500/90 text-white'
+                                    }`}
+                                >
+                                    {toast.type === 'success' && <CheckCircle size={20} />}
+                                    {toast.type === 'error' && <AlertCircle size={20} />}
+                                    {toast.type === 'info' && <Info size={20} />}
+                                    <span className="flex-1 font-medium">{toast.message}</span>
+                                    <button
+                                        onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                                        className="text-white/80 hover:text-white"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     )}
                 </div>
@@ -1746,5 +1833,20 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<SimplePodcastApp />);
     </script>
+    <style>
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
+        }
+    </style>
 </body>
 </html>
