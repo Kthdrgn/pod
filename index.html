@@ -1146,7 +1146,7 @@
             };
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-8">
+                <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-2 sm:p-4 sm:p-8">
                     {!isAuthenticated ? (
                         // Login/Signup Screen
                         <div className="max-w-md mx-auto mt-20">
@@ -1211,11 +1211,11 @@
                         // Main App
                     <div className="max-w-2xl mx-auto">
                         {/* Main Player Card */}
-                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 mb-6">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-4 sm:p-8 mb-4 sm:mb-6">
                             {currentPodcast ? (
                                 <>
                                     {/* Podcast Artwork */}
-                                    <div className="flex justify-center mb-6 px-4">
+                                    <div className="flex justify-center mb-3 sm:mb-6 px-2 sm:px-4">
                                         {currentPodcast.artwork ? (
                                             <img 
                                                 src={currentPodcast.artwork} 
@@ -1232,25 +1232,25 @@
                                     </div>
                                     
                                     {/* Podcast Info */}
-                                    <div className="text-center mb-6">
-                                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                                    <div className="text-center mb-3 sm:mb-6">
+                                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1 sm:mb-2 px-2">
                                             {currentPodcast.episodeTitle}
                                         </h2>
-                                        <p className="text-lg text-purple-600 mb-2">
+                                        <p className="text-base sm:text-lg text-purple-600 mb-1 sm:mb-2 px-2">
                                             {currentPodcast.podcastTitle}
                                         </p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2 sm:mb-3">
                                             {currentPodcast.pubDate}
                                         </p>
                                         {/* Episode Description */}
-                                        <div className="text-sm text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
+                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 max-w-lg mx-auto px-2">
                                             <p className="truncate">
                                                 {currentPodcast.description.replace(/<[^>]*>/g, '')}
                                             </p>
                                             {currentPodcast.description && currentPodcast.description.length > 100 && (
                                                 <button
                                                     onClick={() => setShowDescriptionModal(true)}
-                                                    className="text-purple-600 hover:text-purple-700 font-medium"
+                                                    className="text-purple-600 hover:text-purple-700 font-medium text-xs sm:text-sm"
                                                 >
                                                     more...
                                                 </button>
@@ -1259,7 +1259,7 @@
                                     </div>
                                     
                                     {/* Progress Bar */}
-                                    <div className="mb-4">
+                                    <div className="mb-3 sm:mb-4">
                                         <div 
                                             className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 cursor-pointer"
                                             onClick={handleProgressClick}
@@ -1276,37 +1276,37 @@
                                     </div>
                                     
                                     {/* Player Controls */}
-                                    <div className="flex items-center justify-center gap-4 mb-6">
+                                    <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                                         <button
                                             onClick={skipBackward}
-                                            className="p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
+                                            className="p-2 sm:p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
                                             title="Skip back 10s"
                                         >
-                                            <SkipBack size={24} />
+                                            <SkipBack size={20} className="sm:w-6 sm:h-6" />
                                         </button>
                                         
                                         <button
                                             onClick={() => togglePlay(currentPodcast)}
-                                            className="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-full transition-colors shadow-lg"
+                                            className="bg-purple-600 hover:bg-purple-700 text-white p-4 sm:p-6 rounded-full transition-colors shadow-lg"
                                         >
-                                            {isPlaying ? <Pause size={32} /> : <Play size={32} />}
+                                            {isPlaying ? <Pause size={24} className="sm:w-8 sm:h-8" /> : <Play size={24} className="sm:w-8 sm:h-8" />}
                                         </button>
                                         
                                         <button
                                             onClick={skipForward}
-                                            className="p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
+                                            className="p-2 sm:p-3 hover:bg-gray-100 dark:bg-slate-600 rounded-full transition-colors"
                                             title="Skip forward 30s"
                                         >
-                                            <SkipForward size={24} />
+                                            <SkipForward size={20} className="sm:w-6 sm:h-6" />
                                         </button>
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-center py-16">
-                                    <div className="w-96 h-96 mx-auto rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center mb-6">
-                                        <Play size={96} className="text-purple-300" />
+                                <div className="text-center py-8 sm:py-16">
+                                    <div className="w-48 h-48 sm:w-96 sm:h-96 mx-auto rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 flex items-center justify-center mb-4 sm:mb-6">
+                                        <Play size={64} className="sm:w-24 sm:h-24 text-purple-300" />
                                     </div>
-                                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
                                         No podcast selected
                                     </h2>
                                     <p className="text-gray-600 dark:text-gray-300">
@@ -1317,18 +1317,18 @@
                         </div>
                         
                         {/* Bottom Action Buttons */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-4">
                             <button
                                 onClick={() => setShowModal(true)}
-                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
+                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-3 sm:px-6 py-3 sm:py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium text-sm sm:text-base"
                             >
-                                <List size={20} />
+                                <List size={18} className="sm:w-5 sm:h-5" />
                                 My Podcasts ({feeds.length})
                             </button>
                             
                             <button
                                 onClick={() => setShowSettings(true)}
-                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-6 py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium"
+                                className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-700 text-gray-800 dark:text-gray-100 px-3 sm:px-6 py-3 sm:py-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors font-medium text-sm sm:text-base"
                             >
                                 <Settings size={20} />
                                 Settings
