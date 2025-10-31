@@ -139,7 +139,7 @@
         // 2. podcasts (user_id, feed_url, podcast_title, episode_title, description, pub_date, pub_date_iso, 
         //              audio_url, artwork, last_updated, playback_position, duration, last_played)
         // 3. saved_episodes (user_id, podcast_title, episode_title, description, pub_date, pub_date_iso,
-        //                    audio_url, artwork, feed_url, created_at)
+        //                    audio_url, artwork, feed_url, playback_position, duration, created_at)
         const SUPABASE_URL = 'https://dawhivhhtvjqbfbdmorg.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhd2hpdmhodHZqcWJmYmRtb3JnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NDU1NzcsImV4cCI6MjA3NzQyMTU3N30.Qj_uY7EHYvtkasjFoeVHcKvUZeCpthOcHMqI7xXYdQk';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -946,7 +946,16 @@
                             f.id === feed.id ? { ...f, duration: audio.duration } : f
                         ));
                         
-                        // Save duration to Supabase
+                        // Update saved episodes with duration
+                        setSavedEpisodes(prevSaved => prevSaved.map(ep => {
+                            if (ep.podcast_title === feed.podcastTitle && 
+                                ep.episode_title === feed.episodeTitle) {
+                                return { ...ep, duration: audio.duration };
+                            }
+                            return ep;
+                        }));
+                        
+                        // Save duration to Supabase podcasts table
                         supabase
                             .from('podcasts')
                             .update({ duration: audio.duration })
@@ -956,6 +965,18 @@
                                     console.error('Error saving duration:', error);
                                 } else {
                                     console.log('Duration saved to database:', audio.duration);
+                                }
+                            });
+                        
+                        // Save duration to Supabase saved_episodes table if applicable
+                        supabase
+                            .from('saved_episodes')
+                            .update({ duration: audio.duration })
+                            .eq('podcast_title', feed.podcastTitle)
+                            .eq('episode_title', feed.episodeTitle)
+                            .then(({ error }) => {
+                                if (error && error.code !== 'PGRST116') { // Ignore "no rows" error
+                                    console.error('Error saving duration to saved episodes:', error);
                                 }
                             });
                         
@@ -1067,11 +1088,30 @@
                     f.id === feedId ? { ...f, playbackPosition: position } : f
                 ));
                 
-                // Update in Supabase
+                // Also update saved episodes if this is a saved episode
+                setSavedEpisodes(prevSaved => prevSaved.map(ep => {
+                    if (currentPodcast && 
+                        ep.podcast_title === currentPodcast.podcastTitle && 
+                        ep.episode_title === currentPodcast.episodeTitle) {
+                        return { ...ep, playback_position: position };
+                    }
+                    return ep;
+                }));
+                
+                // Update in Supabase podcasts table
                 await supabase
                     .from('podcasts')
                     .update({ playback_position: position })
                     .eq('id', feedId);
+                
+                // Update in Supabase saved_episodes table if applicable
+                if (currentPodcast) {
+                    await supabase
+                        .from('saved_episodes')
+                        .update({ playback_position: position })
+                        .eq('podcast_title', currentPodcast.podcastTitle)
+                        .eq('episode_title', currentPodcast.episodeTitle);
+                }
             };
             
             const skipForward = () => {
@@ -1151,7 +1191,9 @@
                             pub_date_iso: feed.pubDateISO,
                             audio_url: feed.audioUrl,
                             artwork: feed.artwork,
-                            feed_url: feed.feedUrl
+                            feed_url: feed.feedUrl,
+                            playback_position: feed.playbackPosition || 0,
+                            duration: feed.duration || 0
                         }])
                         .select();
                     
@@ -1616,6 +1658,22 @@
                                                                 </div>
                                                             )}
                                                         </div>
+                                                        
+                                                        {/* Save Button */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                saveEpisode(feed);
+                                                            }}
+                                                            className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                                                                isEpisodeSaved(feed)
+                                                                    ? 'text-purple-600 dark:text-purple-400'
+                                                                    : 'text-gray-400 hover:text-purple-600 dark:hover:text-purple-400'
+                                                            }`}
+                                                            title={isEpisodeSaved(feed) ? 'Saved' : 'Save episode'}
+                                                        >
+                                                            <Bookmark size={20} filled={isEpisodeSaved(feed)} />
+                                                        </button>
                                                     </div>
                                                     );
                                                 })}
@@ -1680,6 +1738,22 @@
                                                                     ></div>
                                                                 </div>
                                                             )}
+                                                            
+                                                            {/* Save Button */}
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    saveEpisode(feed);
+                                                                }}
+                                                                className={`flex items-center justify-center w-full py-2 rounded transition-colors ${
+                                                                    isEpisodeSaved(feed)
+                                                                        ? 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400'
+                                                                        : 'bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-500'
+                                                                }`}
+                                                                title={isEpisodeSaved(feed) ? 'Saved' : 'Save episode'}
+                                                            >
+                                                                <Bookmark size={16} filled={isEpisodeSaved(feed)} />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                     );
@@ -2125,7 +2199,8 @@
                                                                 audioUrl: episode.audio_url,
                                                                 artwork: episode.artwork,
                                                                 feedUrl: episode.feed_url,
-                                                                playbackPosition: 0
+                                                                playbackPosition: episode.playback_position || 0,
+                                                                duration: episode.duration || 0
                                                             };
                                                             togglePlay(episodeFeed);
                                                             setShowSavedModal(false);
@@ -2156,9 +2231,19 @@
                                                             <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate mb-1">
                                                                 {episode.episode_title}
                                                             </p>
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                                                                 {episode.pub_date}
                                                             </p>
+                                                            {/* Progress indicator */}
+                                                            {episode.playback_position > 0 && episode.duration > 0 && (
+                                                                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1">
+                                                                    <div 
+                                                                        className="bg-purple-600 h-1 rounded-full"
+                                                                        style={{ width: `${(episode.playback_position / episode.duration) * 100}%` }}
+                                                                        title={`${formatTime(episode.playback_position)} played`}
+                                                                    ></div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         
                                                         {/* Remove Button */}
