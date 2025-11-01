@@ -1992,38 +1992,6 @@
                                             </div>
                                         </div>
                                         
-                                        {/* Add Podcast Section */}
-                                        <div>
-                                            <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Add Podcast</h4>
-                                            <div className="space-y-2">
-                                                <input
-                                                    type="text"
-                                                    value={newFeedUrl}
-                                                    onChange={(e) => setNewFeedUrl(e.target.value)}
-                                                    onKeyPress={(e) => e.key === 'Enter' && addFeed()}
-                                                    placeholder="Enter podcast RSS feed URL..."
-                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                                    disabled={loading}
-                                                />
-                                                <button
-                                                    onClick={() => {
-                                                        addFeed();
-                                                        if (!loading) {
-                                                            setTimeout(() => setShowSettings(false), 1000);
-                                                        }
-                                                    }}
-                                                    disabled={loading}
-                                                    className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                                                >
-                                                    <Plus size={20} />
-                                                    {loading ? 'Adding...' : 'Add Podcast'}
-                                                </button>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                                                    Find RSS feeds on podcast websites or directories
-                                                </p>
-                                            </div>
-                                        </div>
-                                        
                                         {/* About Section */}
                                         <div>
                                             <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">About</h4>
@@ -2031,6 +1999,20 @@
                                                 <p className="mb-2">Latest Episodes Podcast Player</p>
                                                 <p>A simple podcast player that shows only the newest episode from each podcast.</p>
                                             </div>
+                                        </div>
+                                        
+                                        {/* View Mode Section */}
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">View Mode</h4>
+                                            <a 
+                                                href="landscape.html"
+                                                className="block w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg text-center transition-colors font-medium"
+                                            >
+                                                Switch to Landscape View
+                                            </a>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                                                Currently viewing: Portrait Mode
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
