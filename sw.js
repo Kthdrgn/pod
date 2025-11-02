@@ -1,9 +1,10 @@
 // Service Worker for Podcast PWA
 const CACHE_NAME = 'podcast-pwa-v1';
 const urlsToCache = [
-  '/index.html',
-  '/landscape.html',
-  '/manifest.json',
+  '/pod/',
+  '/pod/index.html',
+  '/pod/landscape.html',
+  '/pod/manifest.json',
   'https://unpkg.com/react@18/umd/react.production.min.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
   'https://unpkg.com/@babel/standalone/babel.min.js',

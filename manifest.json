@@ -2,20 +2,21 @@
   "name": "Latest Episodes Podcast Player",
   "short_name": "Podcast Player",
   "description": "A simple podcast player that shows only the newest episode from each podcast",
-  "start_url": "/index.html",
+  "start_url": "/pod/index.html",
+  "scope": "/pod/",
   "display": "standalone",
   "background_color": "#f3e8ff",
   "theme_color": "#9333ea",
   "orientation": "any",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/pod/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/pod/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -23,13 +24,13 @@
   ],
   "screenshots": [
     {
-      "src": "screenshot-portrait.png",
+      "src": "/pod/screenshot-portrait.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow"
     },
     {
-      "src": "screenshot-landscape.png",
+      "src": "/pod/screenshot-landscape.png",
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide"
@@ -41,15 +42,15 @@
       "name": "My Podcasts",
       "short_name": "Episodes",
       "description": "View your latest podcast episodes",
-      "url": "/index.html",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "url": "/pod/index.html",
+      "icons": [{ "src": "/pod/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Landscape View",
       "short_name": "Landscape",
       "description": "Open in landscape mode",
-      "url": "/landscape.html",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "url": "/pod/landscape.html",
+      "icons": [{ "src": "/pod/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
