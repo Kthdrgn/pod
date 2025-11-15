@@ -1010,19 +1010,21 @@
                             return ep;
                         }));
                         
-                        // Save duration to Supabase podcasts table
-                        supabase
-                            .from('podcasts')
-                            .update({ duration: audio.duration })
-                            .eq('id', feed.id)
-                            .then(({ error }) => {
-                                if (error) {
-                                    console.error('Error saving duration:', error);
-                                } else {
-                                    console.log('Duration saved to database:', audio.duration);
-                                }
-                            });
-                        
+                        // Save duration to Supabase - only update podcasts table if not a saved episode
+                        if (!feed.id || !feed.id.toString().startsWith('saved-')) {
+                            supabase
+                                .from('podcasts')
+                                .update({ duration: audio.duration })
+                                .eq('id', feed.id)
+                                .then(({ error }) => {
+                                    if (error) {
+                                        console.error('Error saving duration:', error);
+                                    } else {
+                                        console.log('Duration saved to database:', audio.duration);
+                                    }
+                                });
+                        }
+
                         // Save duration to Supabase saved_episodes table if applicable
                         supabase
                             .from('saved_episodes')
@@ -1153,12 +1155,14 @@
                     return ep;
                 }));
                 
-                // Update in Supabase podcasts table
-                await supabase
-                    .from('podcasts')
-                    .update({ playback_position: position })
-                    .eq('id', feedId);
-                
+                // Update in Supabase podcasts table (skip if this is a saved episode)
+                if (!feedId || !feedId.toString().startsWith('saved-')) {
+                    await supabase
+                        .from('podcasts')
+                        .update({ playback_position: position })
+                        .eq('id', feedId);
+                }
+
                 // Update in Supabase saved_episodes table if applicable
                 if (currentPodcast) {
                     await supabase
