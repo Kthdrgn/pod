@@ -979,11 +979,13 @@
                         f.id === feed.id ? { ...f, lastPlayed: lastPlayedTime } : f
                     ));
                     
-                    // Save last played to Supabase
-                    supabase
-                        .from('podcasts')
-                        .update({ last_played: lastPlayedTime })
-                        .eq('id', feed.id);
+                    // Save last played to Supabase (skip if this is a saved episode)
+                    if (feed.id && !String(feed.id).startsWith('saved-')) {
+                        supabase
+                            .from('podcasts')
+                            .update({ last_played: lastPlayedTime })
+                            .eq('id', feed.id);
+                    }
                     
                     // Set up event listeners
                     audio.addEventListener('loadedmetadata', () => {
@@ -1011,7 +1013,7 @@
                         }));
                         
                         // Save duration to Supabase - only update podcasts table if not a saved episode
-                        if (!feed.id || !feed.id.toString().startsWith('saved-')) {
+                        if (feed.id && !String(feed.id).startsWith('saved-')) {
                             supabase
                                 .from('podcasts')
                                 .update({ duration: audio.duration })
@@ -1156,7 +1158,7 @@
                 }));
                 
                 // Update in Supabase podcasts table (skip if this is a saved episode)
-                if (!feedId || !feedId.toString().startsWith('saved-')) {
+                if (feedId && !String(feedId).startsWith('saved-')) {
                     await supabase
                         .from('podcasts')
                         .update({ playback_position: position })
