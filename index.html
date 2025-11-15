@@ -1177,10 +1177,10 @@
             
             const skipForward = () => {
                 if (currentAudio) {
-                    currentAudio.currentTime = Math.min(currentAudio.currentTime + 30, duration);
+                    currentAudio.currentTime = Math.min(currentAudio.currentTime + 30, currentAudio.duration);
                 }
             };
-            
+
             const skipBackward = () => {
                 if (currentAudio) {
                     currentAudio.currentTime = Math.max(currentAudio.currentTime - 10, 0);
