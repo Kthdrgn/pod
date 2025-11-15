@@ -1191,18 +1191,18 @@
             
             const saveEpisode = async (feed) => {
                 const userId = getUserId();
-                
+
                 // Check if already saved
-                const existing = savedEpisodes.find(ep => 
-                    ep.podcast_title === feed.podcastTitle && 
+                const existing = savedEpisodes.find(ep =>
+                    ep.podcast_title === feed.podcastTitle &&
                     ep.episode_title === feed.episodeTitle
                 );
-                
+
                 if (existing) {
                     showToast('Episode already saved', 'info');
                     return;
                 }
-                
+
                 try {
                     const { data, error } = await supabase
                         .from('saved_episodes')
@@ -1220,12 +1220,24 @@
                             duration: feed.duration || 0
                         }])
                         .select();
-                    
+
                     if (error) throw error;
-                    
+
                     if (data && data.length > 0) {
                         setSavedEpisodes([...savedEpisodes, data[0]]);
                         showToast('Episode saved!', 'success');
+
+                        // Download audio for offline listening
+                        if (feed.audioUrl && 'caches' in window) {
+                            try {
+                                const cache = await caches.open('podcast-offline-audio');
+                                await cache.add(feed.audioUrl);
+                                showToast('Episode downloaded for offline listening', 'success');
+                            } catch (cacheError) {
+                                console.error('Failed to cache audio:', cacheError);
+                                showToast('Saved but offline download failed', 'warning');
+                            }
+                        }
                     }
                 } catch (error) {
                     showToast(`Failed to save: ${error.message}`, 'error');
@@ -1234,15 +1246,28 @@
             
             const unsaveEpisode = async (episodeId) => {
                 try {
+                    // Find the episode to get its audio URL before deleting
+                    const episode = savedEpisodes.find(ep => ep.id === episodeId);
+
                     const { error } = await supabase
                         .from('saved_episodes')
                         .delete()
                         .eq('id', episodeId);
-                    
+
                     if (error) throw error;
-                    
+
                     setSavedEpisodes(savedEpisodes.filter(ep => ep.id !== episodeId));
                     showToast('Episode removed', 'success');
+
+                    // Remove cached audio file
+                    if (episode && episode.audio_url && 'caches' in window) {
+                        try {
+                            const cache = await caches.open('podcast-offline-audio');
+                            await cache.delete(episode.audio_url);
+                        } catch (cacheError) {
+                            console.error('Failed to remove cached audio:', cacheError);
+                        }
+                    }
                 } catch (error) {
                     showToast(`Failed to remove: ${error.message}`, 'error');
                 }
