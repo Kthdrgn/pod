@@ -552,11 +552,21 @@
                     
                     setFeeds(formattedFeeds);
                     console.log('Loaded feeds with durations:', durations);
-                    
-                    // Refresh all feeds on page load to check for new episodes
+
+                    // Refresh all feeds on page load to check for new episodes (throttled to once per hour)
                     if (formattedFeeds.length > 0) {
-                        showToast('Checking for new episodes...', 'info');
-                        refreshAllFeeds(formattedFeeds);
+                        const lastRefreshTime = localStorage.getItem('lastEpisodesRefresh');
+                        const now = Date.now();
+                        const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+
+                        if (!lastRefreshTime || (now - parseInt(lastRefreshTime)) > oneHour) {
+                            showToast('Checking for new episodes...', 'info');
+                            localStorage.setItem('lastEpisodesRefresh', now.toString());
+                            refreshAllFeeds(formattedFeeds);
+                        } else {
+                            const timeSinceRefresh = Math.floor((now - parseInt(lastRefreshTime)) / 1000 / 60); // minutes
+                            console.log(`Skipping auto-refresh. Last refresh was ${timeSinceRefresh} minutes ago`);
+                        }
                     }
                 }
             };
@@ -872,7 +882,10 @@
                 
                 setFeeds(refreshedFeeds);
                 console.log('All feeds refreshed');
-                
+
+                // Update last refresh timestamp
+                localStorage.setItem('lastEpisodesRefresh', Date.now().toString());
+
                 if (newEpisodeCount > 0) {
                     showToast(`Refresh complete! ${newEpisodeCount} new episode${newEpisodeCount > 1 ? 's' : ''} found`, 'success');
                 } else {
