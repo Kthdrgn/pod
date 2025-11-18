@@ -39,19 +39,20 @@ self.addEventListener('fetch', (event) => {
         
         return fetch(fetchRequest).then((response) => {
           // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
+          // Allow both 'basic' (same-origin) and 'cors' (cross-origin) responses
+          if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
             return response;
           }
-          
+
           // Clone the response
           const responseToCache = response.clone();
-          
+
           // Cache the fetched response for future use
           caches.open(CACHE_NAME)
             .then((cache) => {
               cache.put(event.request, responseToCache);
             });
-          
+
           return response;
         });
       })
