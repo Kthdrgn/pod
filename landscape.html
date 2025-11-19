@@ -547,50 +547,41 @@
                 try {
                     // Try multiple CORS proxies in case one fails
                     const proxies = [
-                        `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
                         `https://corsproxy.io/?${encodeURIComponent(url)}`,
                         `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
                     ];
-                    
+
                     let text = null;
                     let lastError = null;
-                    
+
                     for (const proxyUrl of proxies) {
                         try {
                             console.log('Trying proxy:', proxyUrl);
-                            
+
                             // Create a timeout promise
                             const timeoutPromise = new Promise((_, reject) => {
                                 setTimeout(() => reject(new Error('Timeout after 10 seconds')), 10000);
                             });
-                            
+
                             // Race between fetch and timeout
                             const response = await Promise.race([
-                                fetch(proxyUrl),
+                                fetch(proxyUrl, {
+                                    method: 'GET',
+                                    headers: {
+                                        'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+                                    }
+                                }),
                                 timeoutPromise
                             ]);
-                            
+
                             if (!response.ok) {
                                 throw new Error(`HTTP ${response.status}`);
                             }
-                            
-                            // allorigins returns JSON with contents property
-                            if (proxyUrl.includes('allorigins')) {
-                                const data = await response.json();
-                                text = data.contents;
-                                console.log('Got JSON response, extracted contents');
-                                
-                                // Check if the content is base64 encoded
-                                if (text && text.startsWith('data:') && text.includes('base64,')) {
-                                    console.log('Content is base64 encoded, decoding...');
-                                    const base64Data = text.split('base64,')[1];
-                                    text = atob(base64Data);
-                                    console.log('Decoded successfully');
-                                }
-                            } else {
-                                text = await response.text();
-                            }
-                            
+
+                            // All proxies now return the RSS feed directly as text
+                            text = await response.text();
+
                             if (text && text.length > 0) {
                                 console.log('Successfully fetched feed, length:', text.length);
                                 console.log('First 200 chars:', text.substring(0, 200));
