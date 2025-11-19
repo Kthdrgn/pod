@@ -1,10 +1,12 @@
 // Service Worker for Podcast PWA
-const CACHE_NAME = 'podcast-pwa-v1';
+const CACHE_NAME = 'podcast-pwa-v2';
 const urlsToCache = [
   '/pod/',
   '/pod/index.html',
   '/pod/landscape.html',
   '/pod/manifest.json',
+  '/pod/styles.css',
+  '/pod/favicon.svg',
   'https://unpkg.com/react@18/umd/react.production.min.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
   'https://unpkg.com/@babel/standalone/babel.min.js',
@@ -39,19 +41,23 @@ self.addEventListener('fetch', (event) => {
         
         return fetch(fetchRequest).then((response) => {
           // Check if valid response
-          // Allow both 'basic' (same-origin) and 'cors' (cross-origin) responses
-          if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
+          // Allow 'basic' (same-origin), 'cors' (cross-origin), and 'opaque' (no-cors) responses
+          // For opaque responses, we can't check status (it's always 0), but we can cache them
+          if (!response || (response.type !== 'opaque' && response.status !== 200)) {
             return response;
           }
 
-          // Clone the response
-          const responseToCache = response.clone();
+          // Only cache if response type is cacheable
+          if (response.type === 'basic' || response.type === 'cors' || response.type === 'opaque') {
+            // Clone the response
+            const responseToCache = response.clone();
 
-          // Cache the fetched response for future use
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+            // Cache the fetched response for future use
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+          }
 
           return response;
         });

@@ -1325,7 +1325,11 @@
                 try {
                     showToast('Downloading episode...', 'info');
                     const cache = await caches.open('podcast-offline-audio');
-                    await cache.add(episode.audio_url);
+
+                    // Use no-cors mode to bypass CORS restrictions for caching
+                    // This allows us to cache the audio even if the server doesn't send CORS headers
+                    const response = await fetch(episode.audio_url, { mode: 'no-cors' });
+                    await cache.put(episode.audio_url, response);
 
                     // Update downloaded episodes state
                     setDownloadedEpisodes(prev => new Set([...prev, episode.audio_url]));
