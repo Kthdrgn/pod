@@ -191,6 +191,23 @@
                 <line x1="10" y1="14" x2="21" y2="3"></line>
             </svg>
         );
+
+        const Download = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        );
+
+        const DownloadCheck = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+                <polyline points="9 20 11 22 15 18" stroke="currentColor" strokeWidth="2"></polyline>
+            </svg>
+        );
         
         const RefreshCw = ({ size = 24 }) => (
             <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -358,6 +375,7 @@
             const [toasts, setToasts] = useState([]);
             const [showManageModal, setShowManageModal] = useState(false);
             const [savedEpisodes, setSavedEpisodes] = useState([]);
+            const [downloadedEpisodes, setDownloadedEpisodes] = useState(new Set());
             const [showSavedModal, setShowSavedModal] = useState(false);
             const [dismissedEpisodes, setDismissedEpisodes] = useState([]);
             const [showAddPodcastModal, setShowAddPodcastModal] = useState(false);
@@ -534,11 +552,21 @@
                     
                     setFeeds(formattedFeeds);
                     console.log('Loaded feeds with durations:', durations);
-                    
-                    // Refresh all feeds on page load to check for new episodes
+
+                    // Refresh all feeds on page load to check for new episodes (throttled to once per hour)
                     if (formattedFeeds.length > 0) {
-                        showToast('Checking for new episodes...', 'info');
-                        refreshAllFeeds(formattedFeeds);
+                        const lastRefreshTime = localStorage.getItem('lastEpisodesRefresh');
+                        const now = Date.now();
+                        const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+
+                        if (!lastRefreshTime || (now - parseInt(lastRefreshTime)) > oneHour) {
+                            showToast('Checking for new episodes...', 'info');
+                            localStorage.setItem('lastEpisodesRefresh', now.toString());
+                            refreshAllFeeds(formattedFeeds);
+                        } else {
+                            const timeSinceRefresh = Math.floor((now - parseInt(lastRefreshTime)) / 1000 / 60); // minutes
+                            console.log(`Skipping auto-refresh. Last refresh was ${timeSinceRefresh} minutes ago`);
+                        }
                     }
                 }
             };
@@ -845,7 +873,10 @@
                 
                 setFeeds(refreshedFeeds);
                 console.log('All feeds refreshed');
-                
+
+                // Update last refresh timestamp
+                localStorage.setItem('lastEpisodesRefresh', Date.now().toString());
+
                 if (newEpisodeCount > 0) {
                     showToast(`Refresh complete! ${newEpisodeCount} new episode${newEpisodeCount > 1 ? 's' : ''} found`, 'success');
                 } else {
@@ -939,11 +970,13 @@
                         f.id === feed.id ? { ...f, lastPlayed: lastPlayedTime } : f
                     ));
                     
-                    // Save last played to Supabase
-                    supabase
-                        .from('podcasts')
-                        .update({ last_played: lastPlayedTime })
-                        .eq('id', feed.id);
+                    // Save last played to Supabase (skip if this is a saved episode)
+                    if (feed.id && !String(feed.id).startsWith('saved-')) {
+                        supabase
+                            .from('podcasts')
+                            .update({ last_played: lastPlayedTime })
+                            .eq('id', feed.id);
+                    }
                     
                     // Set up event listeners
                     audio.addEventListener('loadedmetadata', () => {
@@ -970,19 +1003,21 @@
                             return ep;
                         }));
                         
-                        // Save duration to Supabase podcasts table
-                        supabase
-                            .from('podcasts')
-                            .update({ duration: audio.duration })
-                            .eq('id', feed.id)
-                            .then(({ error }) => {
-                                if (error) {
-                                    console.error('Error saving duration:', error);
-                                } else {
-                                    console.log('Duration saved to database:', audio.duration);
-                                }
-                            });
-                        
+                        // Save duration to Supabase - only update podcasts table if not a saved episode
+                        if (feed.id && !String(feed.id).startsWith('saved-')) {
+                            supabase
+                                .from('podcasts')
+                                .update({ duration: audio.duration })
+                                .eq('id', feed.id)
+                                .then(({ error }) => {
+                                    if (error) {
+                                        console.error('Error saving duration:', error);
+                                    } else {
+                                        console.log('Duration saved to database:', audio.duration);
+                                    }
+                                });
+                        }
+
                         // Save duration to Supabase saved_episodes table if applicable
                         supabase
                             .from('saved_episodes')
@@ -1113,12 +1148,14 @@
                     return ep;
                 }));
                 
-                // Update in Supabase podcasts table
-                await supabase
-                    .from('podcasts')
-                    .update({ playback_position: position })
-                    .eq('id', feedId);
-                
+                // Update in Supabase podcasts table (skip if this is a saved episode)
+                if (feedId && !String(feedId).startsWith('saved-')) {
+                    await supabase
+                        .from('podcasts')
+                        .update({ playback_position: position })
+                        .eq('id', feedId);
+                }
+
                 // Update in Supabase saved_episodes table if applicable
                 if (currentPodcast) {
                     await supabase
@@ -1131,10 +1168,10 @@
             
             const skipForward = () => {
                 if (currentAudio) {
-                    currentAudio.currentTime = Math.min(currentAudio.currentTime + 30, duration);
+                    currentAudio.currentTime = Math.min(currentAudio.currentTime + 30, currentAudio.duration);
                 }
             };
-            
+
             const skipBackward = () => {
                 if (currentAudio) {
                     currentAudio.currentTime = Math.max(currentAudio.currentTime - 10, 0);
@@ -1223,6 +1260,7 @@
                             try {
                                 const cache = await caches.open('podcast-offline-audio');
                                 await cache.add(feed.audioUrl);
+                                setDownloadedEpisodes(prev => new Set([...prev, feed.audioUrl]));
                                 showToast('Episode downloaded for offline listening', 'success');
                             } catch (cacheError) {
                                 console.error('Failed to cache audio:', cacheError);
@@ -1255,6 +1293,11 @@
                         try {
                             const cache = await caches.open('podcast-offline-audio');
                             await cache.delete(episode.audio_url);
+                            setDownloadedEpisodes(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(episode.audio_url);
+                                return newSet;
+                            });
                         } catch (cacheError) {
                             console.error('Failed to remove cached audio:', cacheError);
                         }
@@ -1263,7 +1306,54 @@
                     showToast(`Failed to remove: ${error.message}`, 'error');
                 }
             };
-            
+
+            const checkIfCached = async (audioUrl) => {
+                if (!audioUrl || !('caches' in window)) return false;
+                try {
+                    const cache = await caches.open('podcast-offline-audio');
+                    const response = await cache.match(audioUrl);
+                    return !!response;
+                } catch (error) {
+                    console.error('Error checking cache:', error);
+                    return false;
+                }
+            };
+
+            const downloadEpisodeAudio = async (episode) => {
+                if (!episode.audio_url || !('caches' in window)) {
+                    showToast('Cannot download episode', 'error');
+                    return;
+                }
+
+                try {
+                    showToast('Downloading episode...', 'info');
+                    const cache = await caches.open('podcast-offline-audio');
+                    await cache.add(episode.audio_url);
+
+                    // Update downloaded episodes state
+                    setDownloadedEpisodes(prev => new Set([...prev, episode.audio_url]));
+                    showToast('Episode downloaded for offline listening', 'success');
+                } catch (error) {
+                    console.error('Failed to download audio:', error);
+                    showToast('Download failed', 'error');
+                }
+            };
+
+            const checkDownloadedStatus = async () => {
+                if (!('caches' in window)) return;
+
+                const downloaded = new Set();
+                for (const episode of savedEpisodes) {
+                    if (episode.audio_url) {
+                        const isCached = await checkIfCached(episode.audio_url);
+                        if (isCached) {
+                            downloaded.add(episode.audio_url);
+                        }
+                    }
+                }
+                setDownloadedEpisodes(downloaded);
+            };
+
             const loadSavedEpisodes = async () => {
                 const userId = getUserId();
                 
@@ -1601,7 +1691,10 @@
                                                 </button>
                                                 
                                                 <button
-                                                    onClick={() => setShowSavedModal(true)}
+                                                    onClick={() => {
+                                                        setShowSavedModal(true);
+                                                        checkDownloadedStatus();
+                                                    }}
                                                     className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
                                                     title="Saved Episodes"
                                                 >
@@ -1654,7 +1747,10 @@
                                         </button>
                                         
                                         <button
-                                            onClick={() => setShowSavedModal(true)}
+                                            onClick={() => {
+                                                setShowSavedModal(true);
+                                                checkDownloadedStatus();
+                                            }}
                                             className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
                                             title="Saved Episodes"
                                         >
@@ -2445,7 +2541,28 @@
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        
+
+                                                        {/* Download Status/Button */}
+                                                        {downloadedEpisodes.has(episode.audio_url) ? (
+                                                            <div
+                                                                className="text-green-600 dark:text-green-400 p-2 flex-shrink-0"
+                                                                title="Downloaded for offline"
+                                                            >
+                                                                <DownloadCheck size={18} />
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    downloadEpisodeAudio(episode);
+                                                                }}
+                                                                className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2 transition-colors flex-shrink-0"
+                                                                title="Download for offline"
+                                                            >
+                                                                <Download size={18} />
+                                                            </button>
+                                                        )}
+
                                                         {/* Remove Button */}
                                                         <button
                                                             onClick={(e) => {
