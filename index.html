@@ -1494,7 +1494,7 @@
             };
 
             return (
-                <div className="min-h-screen lg:h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-2 sm:p-4 lg:flex lg:flex-col">
+                <div className="min-h-screen lg:h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-2 lg:p-6 lg:flex lg:flex-col">
                     {!isAuthenticated ? (
                         // Login/Signup Screen
                         <div className="max-w-md mx-auto mt-20">
@@ -1557,24 +1557,24 @@
                         </div>
                     ) : (
                         // Main App
-                    <div className="max-w-2xl mx-auto lg:w-full lg:h-full lg:flex lg:flex-col lg:max-w-none">
+                    <div className="max-w-2xl mx-auto lg:w-full lg:h-full lg:flex lg:flex-col lg:max-w-full">
                         {/* Main Player Card */}
-                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-4 sm:p-8 mb-4 sm:mb-6 lg:flex-1 lg:flex lg:items-center lg:p-8">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-3 mb-3 lg:flex-1 lg:flex lg:items-center lg:p-12 lg:mb-0">
                             {currentPodcast ? (
                                 <>
                                     {/* Two Column Layout for Landscape */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full max-h-full">
+                                    <div className="grid grid-cols-1 lg:grid-cols-[1.2fr,1fr] gap-4 lg:gap-16 items-center w-full max-h-full">
                                         {/* Left Column - Artwork */}
                                         <div className="flex justify-center items-center h-full">
                                             {currentPodcast.artwork ? (
-                                                <img 
-                                                    src={currentPodcast.artwork} 
+                                                <img
+                                                    src={currentPodcast.artwork}
                                                     alt={currentPodcast.podcastTitle}
-                                                    className="w-full aspect-square rounded-2xl object-cover shadow-lg"
+                                                    className="w-full max-w-xs lg:max-w-none aspect-square rounded-xl lg:rounded-3xl object-cover shadow-lg"
                                                 />
                                             ) : (
-                                                <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center shadow-lg">
-                                                    <span className="text-white text-9xl font-bold">
+                                                <div className="w-full max-w-xs lg:max-w-none aspect-square rounded-xl lg:rounded-3xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center shadow-lg">
+                                                    <span className="text-white text-6xl lg:text-9xl font-bold">
                                                         {currentPodcast.podcastTitle.charAt(0)}
                                                     </span>
                                                 </div>
@@ -1582,20 +1582,20 @@
                                         </div>
                                         
                                         {/* Right Column - Info and Controls */}
-                                        <div className="flex flex-col justify-center space-y-6">
+                                        <div className="flex flex-col justify-center space-y-2 lg:space-y-6">
                                             {/* Podcast Info */}
                                             <div className="text-center lg:text-left">
-                                                <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3">
+                                                <h2 className="text-lg lg:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-1 lg:mb-3 line-clamp-2">
                                                     {currentPodcast.episodeTitle}
                                                 </h2>
-                                                <p className="text-xl lg:text-2xl text-purple-600 mb-2">
+                                                <p className="text-sm lg:text-2xl text-purple-600 mb-1 lg:mb-2 truncate">
                                                     {currentPodcast.podcastTitle}
                                                 </p>
-                                                <p className="text-base lg:text-lg text-gray-500 dark:text-gray-400 mb-4">
+                                                <p className="text-xs lg:text-lg text-gray-500 dark:text-gray-400 mb-2 lg:mb-4">
                                                     {currentPodcast.pubDate}
                                                 </p>
                                                 {/* Episode Description */}
-                                                <div className="text-base lg:text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto lg:mx-0">
+                                                <div className="text-xs lg:text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto lg:mx-0 hidden lg:block">
                                                     <p className="truncate">
                                                         {currentPodcast.description.replace(/<[^>]*>/g, '')}
                                                     </p>
@@ -1612,59 +1612,59 @@
                                             
                                             {/* Progress Bar */}
                                             <div>
-                                                <div 
-                                                    className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 cursor-pointer"
+                                                <div
+                                                    className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 lg:h-3 cursor-pointer"
                                                     onClick={handleProgressClick}
                                                 >
-                                                    <div 
-                                                        className="bg-purple-600 h-3 rounded-full transition-all"
+                                                    <div
+                                                        className="bg-purple-600 h-1.5 lg:h-3 rounded-full transition-all"
                                                         style={{ width: `${(progress / duration) * 100}%` }}
                                                     ></div>
                                                 </div>
-                                                <div className="flex justify-between text-sm lg:text-base text-gray-500 dark:text-gray-400 mt-2">
+                                                <div className="flex justify-between text-xs lg:text-base text-gray-500 dark:text-gray-400 mt-1 lg:mt-2">
                                                     <span>{formatTime(progress)}</span>
                                                     <span>{formatTime(duration)}</span>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Player Controls */}
-                                            <div className="flex items-center justify-center gap-6">
+                                            <div className="flex items-center justify-center gap-3 lg:gap-6">
                                                 <button
                                                     onClick={skipBackward}
-                                                    className="p-4 hover:bg-gray-100 dark:hover:bg-slate-600 dark:bg-slate-700 rounded-full transition-colors"
+                                                    className="p-2 lg:p-4 hover:bg-gray-100 dark:hover:bg-slate-600 dark:bg-slate-700 rounded-full transition-colors"
                                                     title="Skip back 10s"
                                                 >
-                                                    <SkipBack size={32} />
+                                                    <SkipBack size={20} className="lg:w-8 lg:h-8" />
                                                 </button>
-                                                
+
                                                 <button
                                                     onClick={() => togglePlay(currentPodcast)}
-                                                    className="bg-purple-600 hover:bg-purple-700 text-white p-8 rounded-full transition-colors shadow-lg"
+                                                    className="bg-purple-600 hover:bg-purple-700 text-white p-4 lg:p-8 rounded-full transition-colors shadow-lg"
                                                 >
-                                                    {isPlaying ? <Pause size={48} /> : <Play size={48} />}
+                                                    {isPlaying ? <Pause size={28} className="lg:w-12 lg:h-12" /> : <Play size={28} className="lg:w-12 lg:h-12" />}
                                                 </button>
-                                                
+
                                                 <button
                                                     onClick={skipForward}
-                                                    className="p-4 hover:bg-gray-100 dark:hover:bg-slate-600 dark:bg-slate-700 rounded-full transition-colors"
+                                                    className="p-2 lg:p-4 hover:bg-gray-100 dark:hover:bg-slate-600 dark:bg-slate-700 rounded-full transition-colors"
                                                     title="Skip forward 30s"
                                                 >
-                                                    <SkipForward size={32} />
+                                                    <SkipForward size={20} className="lg:w-8 lg:h-8" />
                                                 </button>
                                             </div>
-                                            
+
                                             {/* Save Episode Button */}
                                             <div className="flex justify-center">
                                                 <button
                                                     onClick={() => saveEpisode(currentPodcast)}
-                                                    className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors text-lg ${
+                                                    className={`flex items-center gap-1.5 lg:gap-2 px-3 py-1.5 lg:px-6 lg:py-3 rounded-lg transition-colors text-sm lg:text-lg ${
                                                         isEpisodeSaved(currentPodcast)
                                                             ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300'
                                                             : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
                                                     }`}
                                                     title={isEpisodeSaved(currentPodcast) ? 'Episode saved' : 'Save episode for later'}
                                                 >
-                                                    <Bookmark size={24} filled={isEpisodeSaved(currentPodcast)} />
+                                                    <Bookmark size={16} className="lg:w-6 lg:h-6" filled={isEpisodeSaved(currentPodcast)} />
                                                     <span className="font-medium">
                                                         {isEpisodeSaved(currentPodcast) ? 'Saved' : 'Save Episode'}
                                                     </span>
@@ -1672,79 +1672,79 @@
                                             </div>
                                             
                                             {/* Navigation Buttons */}
-                                            <div className="grid grid-cols-4 gap-2 mt-4">
+                                            <div className="grid grid-cols-4 gap-1.5 lg:gap-2 mt-2 lg:mt-4">
                                                 <button
                                                     onClick={() => setShowModal(true)}
-                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                                     title="My Podcasts"
                                                 >
-                                                    <List size={20} />
-                                                    <span className="text-xs font-medium">Episodes</span>
+                                                    <List size={16} className="lg:w-5 lg:h-5" />
+                                                    <span className="text-[10px] lg:text-xs font-medium">Episodes</span>
                                                 </button>
-                                                
+
                                                 <button
                                                     onClick={() => setShowManageModal(true)}
-                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                                     title="Manage Podcasts"
                                                 >
-                                                    <Podcast size={20} />
-                                                    <span className="text-xs font-medium">Podcasts</span>
+                                                    <Podcast size={16} className="lg:w-5 lg:h-5" />
+                                                    <span className="text-[10px] lg:text-xs font-medium">Podcasts</span>
                                                 </button>
-                                                
+
                                                 <button
                                                     onClick={() => {
                                                         setShowSavedModal(true);
                                                         checkDownloadedStatus();
                                                     }}
-                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                                     title="Saved Episodes"
                                                 >
-                                                    <Bookmark size={20} />
-                                                    <span className="text-xs font-medium">Saved</span>
+                                                    <Bookmark size={16} className="lg:w-5 lg:h-5" />
+                                                    <span className="text-[10px] lg:text-xs font-medium">Saved</span>
                                                 </button>
-                                                
+
                                                 <button
                                                     onClick={() => setShowSettings(true)}
-                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                                    className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                                     title="Settings"
                                                 >
-                                                    <Settings size={20} />
-                                                    <span className="text-xs font-medium">Settings</span>
+                                                    <Settings size={16} className="lg:w-5 lg:h-5" />
+                                                    <span className="text-[10px] lg:text-xs font-medium">Settings</span>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-center flex flex-col items-center justify-center h-full">
-                                    <div className="w-48 h-48 sm:w-64 sm:h-64 lg:w-96 lg:h-96 rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 flex items-center justify-center mb-6 sm:mb-8">
-                                        <Play size={64} className="sm:w-24 sm:h-24 lg:w-32 lg:h-32 text-purple-300" />
+                                <div className="text-center flex flex-col items-center justify-center h-full py-4">
+                                    <div className="w-32 h-32 lg:w-96 lg:h-96 rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 flex items-center justify-center mb-4 lg:mb-8">
+                                        <Play size={48} className="lg:w-32 lg:h-32 text-purple-300" />
                                     </div>
-                                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
+                                    <h2 className="text-xl lg:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2 lg:mb-4">
                                         No podcast selected
                                     </h2>
-                                    <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-8">
+                                    <p className="text-sm lg:text-xl text-gray-600 dark:text-gray-300 mb-4 lg:mb-8">
                                         Add a podcast below to start listening
                                     </p>
 
                                     {/* Navigation Buttons for Empty State */}
-                                    <div className="grid grid-cols-4 gap-2 max-w-xs sm:max-w-md lg:max-w-lg">
+                                    <div className="grid grid-cols-4 gap-1.5 lg:gap-2 max-w-xs lg:max-w-lg">
                                         <button
                                             onClick={() => setShowModal(true)}
-                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                             title="My Podcasts"
                                         >
-                                            <List size={20} />
-                                            <span className="text-xs font-medium">Episodes</span>
+                                            <List size={16} className="lg:w-5 lg:h-5" />
+                                            <span className="text-[10px] lg:text-xs font-medium">Episodes</span>
                                         </button>
 
                                         <button
                                             onClick={() => setShowManageModal(true)}
-                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                             title="Manage Podcasts"
                                         >
-                                            <Podcast size={20} />
-                                            <span className="text-xs font-medium">Podcasts</span>
+                                            <Podcast size={16} className="lg:w-5 lg:h-5" />
+                                            <span className="text-[10px] lg:text-xs font-medium">Podcasts</span>
                                         </button>
 
                                         <button
@@ -1752,20 +1752,20 @@
                                                 setShowSavedModal(true);
                                                 checkDownloadedStatus();
                                             }}
-                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                             title="Saved Episodes"
                                         >
-                                            <Bookmark size={20} />
-                                            <span className="text-xs font-medium">Saved</span>
+                                            <Bookmark size={16} className="lg:w-5 lg:h-5" />
+                                            <span className="text-[10px] lg:text-xs font-medium">Saved</span>
                                         </button>
 
                                         <button
                                             onClick={() => setShowSettings(true)}
-                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-3 rounded-lg flex flex-col items-center justify-center gap-1 shadow-md transition-colors"
+                                            className="bg-white hover:bg-gray-50 dark:hover:bg-slate-700 dark:bg-slate-800 text-gray-800 dark:text-gray-100 p-2 lg:p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 lg:gap-1 shadow-md transition-colors"
                                             title="Settings"
                                         >
-                                            <Settings size={20} />
-                                            <span className="text-xs font-medium">Settings</span>
+                                            <Settings size={16} className="lg:w-5 lg:h-5" />
+                                            <span className="text-[10px] lg:text-xs font-medium">Settings</span>
                                         </button>
                                     </div>
                                 </div>
